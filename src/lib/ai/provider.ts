@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { z } from "zod";
+import { parseModelJson } from "@/lib/ai/json";
 import { redactSecrets } from "@/lib/domain/secrets";
 
 export class AiNotConfiguredError extends Error {
@@ -75,8 +76,20 @@ function resolveProvider(task: AiTask): ProviderConfig {
   };
 }
 
+class AiOutputTruncatedError extends Error {
+  constructor() {
+    super(
+      "The model exhausted its output budget before answering. Retry, shorten the session notes, or switch AI_MODEL.",
+    );
+    this.name = "AiOutputTruncatedError";
+  }
+}
+
 type ChatResponse = {
-  choices?: Array<{ message?: { content?: string | null } }>;
+  choices?: Array<{
+    message?: { content?: string | null; reasoning?: string | null };
+    finish_reason?: string;
+  }>;
   usage?: {
     prompt_tokens?: number;
     completion_tokens?: number;
@@ -84,19 +97,6 @@ type ChatResponse = {
   };
   error?: { message?: string };
 };
-
-function parseJsonLoose(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(raw.slice(start, end + 1));
-    }
-    throw new Error("Model returned content that is not valid JSON.");
-  }
-}
 
 async function callModel(
   config: ProviderConfig,
@@ -118,8 +118,11 @@ async function callModel(
           model: config.model,
           messages,
           temperature: 0.4,
-          max_tokens: 3000,
+          max_tokens: 8000,
           response_format: { type: "json_object" },
+          ...(config.provider === "openrouter"
+            ? { reasoning: { max_tokens: 1024, exclude: true } }
+            : {}),
         }),
       });
       const text = await response.text();
@@ -139,8 +142,10 @@ async function callModel(
         throw new Error(`AI provider error (${response.status}): ${message}`);
       }
       const content = payload.choices?.[0]?.message?.content ?? "";
+      const finishReason = payload.choices?.[0]?.finish_reason ?? "unknown";
       if (!content.trim()) {
-        throw new Error("AI provider returned an empty response.");
+        if (finishReason === "length") throw new AiOutputTruncatedError();
+        throw new Error(`AI provider returned an empty response (finish_reason=${finishReason}).`);
       }
       const cost =
         typeof payload.usage?.cost === "number" ? payload.usage.cost.toFixed(6) : null;
@@ -152,6 +157,7 @@ async function callModel(
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      if (lastError.name === "AiOutputTruncatedError") break;
       if (attempt === 2) break;
       await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     } finally {
@@ -179,9 +185,12 @@ export async function generateStructured<T>(input: {
   let lastProblem = "";
 
   try {
-    const result = input.schema.safeParse(parseJsonLoose(first.content));
+    const result = input.schema.safeParse(parseModelJson(first.content));
     if (result.success) parsed = result.data;
-    else lastProblem = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
+    else
+      lastProblem = result.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("; ");
   } catch (error) {
     lastProblem = error instanceof Error ? error.message : "invalid JSON";
   }
@@ -198,7 +207,15 @@ export async function generateStructured<T>(input: {
     lastRaw = repair.content;
     tokensIn = (tokensIn ?? 0) + (repair.tokensIn ?? 0);
     tokensOut = (tokensOut ?? 0) + (repair.tokensOut ?? 0);
-    const result = input.schema.safeParse(parseJsonLoose(repair.content));
+    let repaired: unknown;
+    try {
+      repaired = parseModelJson(repair.content);
+    } catch {
+      throw new Error(
+        "AI output was not valid JSON even after a repair attempt. Retry or switch AI_MODEL.",
+      );
+    }
+    const result = input.schema.safeParse(repaired);
     if (!result.success) {
       throw new Error(
         `AI output did not match the expected structure: ${result.error.issues

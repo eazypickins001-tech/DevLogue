@@ -16,6 +16,8 @@ export const PLATFORMS = [
   "x",
   "tiktok",
   "facebook",
+  "threads",
+  "bluesky",
   "other",
 ] as const;
 

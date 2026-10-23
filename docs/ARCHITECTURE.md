@@ -49,7 +49,7 @@ Design choices:
 - Provider responses are redacted with `redactSecrets()` before surfacing.
 - Usage is recorded in `usage_records`. `costUsd` stays `null` unless the provider reports `usage.cost`.
 
-Prompts (`src/lib/ai/prompts.ts`) state the anti-fabrication rules, include the JSON schema derived from Zod, and pass only selected session/evidence text.
+Prompts (`src/lib/ai/prompts.ts`) state the anti-fabrication rules, include the JSON schema derived from Zod for both analysis and formats, and pass only selected session/evidence text. Requests use JSON mode, `max_tokens: 8000`, and (on OpenRouter) a 1024-token reasoning cap because free reasoning models otherwise consume the whole completion budget. A malformed response is repaired once with a stricter instruction; `parseModelJson()` tolerates fences, prose wrappers, raw newlines, and trailing commas.
 
 Format schemas (`src/lib/ai/schemas.ts`) cover text, threads, outlines, changelog and storyboards. `payloadToBody()` renders a deterministic editable body.
 
@@ -61,10 +61,13 @@ Format schemas (`src/lib/ai/schemas.ts`) cover text, threads, outlines, changelo
 
 ## Publishing path
 
-- `publishing_accounts` maps project → provider → external account id.
-- The verified HighLevel Social Planner API accepts draft/scheduled posts with `accountIds`, `type`, `userId`, optional `summary`/`media`/`scheduleDate`, and requires `Version: 2021-07-28`.
-- Scheduling is deliberately not enabled without credentials. The calendar presents approved drafts for manual handoff. A provider adapter would sit behind an interface so HighLevel can be replaced by direct platform APIs later.
-- Duplicate scheduling prevention is implemented as a pure function (`findScheduleConflicts`) with tests, ready for the scheduling action.
+- `publishing_accounts` maps project → provider → external account id. Accounts are discovered from HighLevel, not typed by hand.
+- `src/lib/publishing/ghl.ts` wraps the verified Social Planner endpoints: account list, user discovery, media upload (multipart or hosted URL), post create, and delete. `Version: 2021-07-28` is sent on every call.
+- Test mode (`GHL_TEST_MODE=true`, default) forces `status: draft` and ignores schedule fields. With test mode off, `scheduleDate` is converted from the chosen local time and IANA timezone to UTC and sent with `status: scheduled`.
+- `src/lib/publishing/handoff.ts` issues short-lived HMAC tokens for `/api/publishing-media/[token]`. HighLevel fetches that public-but-unguessable URL as hosted media; this exists because HighLevel could not read private R2 presigned URLs (verified 400 `UNABLE_TO_DETERMINE_CONTENT_TYPE`).
+- Local and small assets (≤25MB) fall back to direct multipart upload, so development does not need a public URL.
+- Every attempt writes a `scheduled_posts` row and a `publishing_jobs` row. Existing draft/scheduled/publishing records block duplicates, and `findScheduleConflicts` prevents same-account posts within five minutes.
+- The user must approve a specific version before the handoff form is available. Approving still does not publish anything.
 
 ## Upload security
 
@@ -87,6 +90,6 @@ Errors block approval morally rather than technically; the UI surfaces them and 
 
 ## Testing strategy
 
-77 Vitest unit tests cover: session signing/expiry/tampering, storyboard normalization and validation, content lint rules, duplicate scheduling, timezone fallback, MIME classification, filename safety, upload limits, magic bytes, secret redaction, Zod validation schemas, AI schema mapping and body rendering.
+Vitest unit tests cover session signing/expiry/tampering, storyboard normalization and validation, content lint rules, duplicate scheduling, timezone conversion, MIME classification, filename safety, upload limits, magic bytes, secret redaction, handoff tokens, JSON repair, publishing status/type mapping, Zod validation schemas, AI schema mapping and body rendering. A Playwright smoke script (`scripts/smoke-e2e.mjs`) exercises the full local flow, including a real HighLevel draft that it deletes afterwards.
 
 External services are never called in tests. Live integration verification uses the read-only checks on `/integrations`.

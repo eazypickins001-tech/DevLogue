@@ -42,6 +42,7 @@ import { EVIDENCE_KINDS } from "@/lib/validation";
 import type { Analysis } from "@/lib/ai/schemas";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const DEFAULT_FORMATS: ContentFormatValue[] = ["linkedin_post", "x_post", "short_video"];
 
@@ -187,9 +188,10 @@ export default async function SessionDetailPage({
               <summary className="cursor-pointer text-sm font-medium text-slate-700">Add evidence</summary>
               <form action={addEvidence} className="grid gap-4 pt-4 md:grid-cols-2">
                 <input type="hidden" name="sessionId" value={session.id} />
-                <Field label="Kind" htmlFor="kind">
+                <Field label="Kind" htmlFor="evidence-kind">
                   <Select
                     name="kind"
+                    id="evidence-kind"
                     defaultValue="commit"
                     options={EVIDENCE_KINDS.map((kind) => ({
                       value: kind,
@@ -197,22 +199,22 @@ export default async function SessionDetailPage({
                     }))}
                   />
                 </Field>
-                <Field label="Title" htmlFor="title">
-                  <TextInput name="title" required placeholder="fix: serialize R2 uploads" maxLength={200} />
+                <Field label="Title" htmlFor="evidence-title">
+                  <TextInput name="title" id="evidence-title" required placeholder="fix: serialize R2 uploads" maxLength={200} />
                 </Field>
-                <Field label="URL" htmlFor="url" hint="Commit, PR, release or screenshot link.">
-                  <TextInput name="url" type="url" placeholder="https://github.com/…" />
+                <Field label="URL" htmlFor="evidence-url" hint="Commit, PR, release or screenshot link.">
+                  <TextInput name="url" id="evidence-url" type="url" placeholder="https://github.com/…" />
                 </Field>
-                <Field label="Reference" htmlFor="externalRef" hint="Commit SHA, PR number, release tag.">
-                  <TextInput name="externalRef" placeholder="a1b2c3d" maxLength={300} />
+                <Field label="Reference" htmlFor="evidence-ref" hint="Commit SHA, PR number, release tag.">
+                  <TextInput name="externalRef" id="evidence-ref" placeholder="a1b2c3d" maxLength={300} />
                 </Field>
                 <div className="md:col-span-2">
-                  <Field label="Notes or transcript excerpt" htmlFor="body">
-                    <TextArea name="body" rows={3} placeholder="What this proves." maxLength={8000} />
+                  <Field label="Notes or transcript excerpt" htmlFor="evidence-body">
+                    <TextArea name="body" id="evidence-body" rows={3} placeholder="What this proves." maxLength={8000} />
                   </Field>
                 </div>
-                <Field label="Occurred at" htmlFor="occurredAt">
-                  <TextInput name="occurredAt" type="date" />
+                <Field label="Occurred at" htmlFor="evidence-date">
+                  <TextInput name="occurredAt" id="evidence-date" type="date" />
                 </Field>
                 <label className="flex items-end gap-2 pb-2 text-sm text-slate-700">
                   <input type="checkbox" name="verified" className="h-4 w-4 rounded border-slate-300" />

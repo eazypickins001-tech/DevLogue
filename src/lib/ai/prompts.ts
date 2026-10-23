@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { analysisSchema } from "@/lib/ai/schemas";
 import { CONTENT_FORMATS, type ContentFormatValue } from "@/lib/domain/content";
 import { redactSecrets } from "@/lib/domain/secrets";
 import type { StoryboardScenePayload } from "@/db/schema";
@@ -61,6 +62,9 @@ export function buildAnalysisPrompt(input: {
     "Produce a structured analysis of this development session for later content generation.",
     "Every claim must reference evidence ids when evidence exists. Mark verified=false when the evidence does not prove the claim.",
     "List anything that would be needed to support a stronger claim under evidenceGaps.",
+    "",
+    "OUTPUT JSON SCHEMA (return exactly this shape, all keys present):",
+    json(schemaDescription(analysisSchema)),
     "",
     "PROJECT:",
     json(input.project),

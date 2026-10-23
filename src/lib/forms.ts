@@ -11,7 +11,9 @@ export function redirectWith(
     if (value) search.set(key, value);
   }
   const query = search.toString();
-  redirect(query ? `${path}?${query}` : path);
+  if (!query) redirect(path);
+  const [base, hash] = path.split("#");
+  redirect(`${base}?${query}${hash ? `#${hash}` : ""}`);
 }
 
 export function redirectError(path: string, message: string): never {

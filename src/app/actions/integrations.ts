@@ -97,8 +97,12 @@ async function checkGhl(): Promise<CheckResult> {
         detail: `HighLevel returned HTTP ${response.status}. Check the token scopes and location ID.`,
       };
     }
-    const payload = (await response.json()) as { accounts?: unknown[] };
-    const count = Array.isArray(payload.accounts) ? payload.accounts.length : 0;
+    const payload = (await response.json()) as {
+      accounts?: unknown[];
+      results?: { accounts?: unknown[] };
+    };
+    const accounts = payload.accounts ?? payload.results?.accounts ?? [];
+    const count = Array.isArray(accounts) ? accounts.length : 0;
     return { ...base, ok: true, detail: `${count} connected social account(s) visible.` };
   } catch (error) {
     return {

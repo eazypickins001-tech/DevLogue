@@ -4,6 +4,7 @@ import { isDatabaseConfigured } from "@/db";
 import { approveDraft, archiveDraft, regenerateDraft, updateDraft } from "@/app/actions/content";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { Field, TextArea, TextInput } from "@/components/form-fields";
+import { PublishPanel } from "@/components/publish-panel";
 import { QualityList } from "@/components/quality-list";
 import { StoryboardView } from "@/components/storyboard-view";
 import { SubmitButton } from "@/components/submit-button";
@@ -21,13 +22,14 @@ import {
   mutedLinkClass,
 } from "@/components/ui";
 import { getOwner, requireSession } from "@/lib/auth";
-import { getDraftDetail, getSessionDetail } from "@/lib/queries";
+import { getDraftDetail, getSessionDetail, listDraftPosts, listProjectAccounts } from "@/lib/queries";
 import { DRAFT_STATUS_LABELS, formatDateTime } from "@/lib/labels";
 import { CONTENT_FORMATS, lintContent, type ContentFormatValue, type LintIssue } from "@/lib/domain/content";
 import { storyboardIssues } from "@/lib/domain/storyboard";
 import { buildEvidenceCorpus } from "@/lib/services/content";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function DraftPage({
   params,
@@ -58,6 +60,10 @@ export default async function DraftPage({
 
   const { draft, project, session, analysis, versions, approvals, storyboard, scenes } = detail;
   const sessionDetail = session ? await getSessionDetail(owner.id, session.id) : null;
+  const [projectAccounts, draftPosts] = await Promise.all([
+    listProjectAccounts(owner.id, project.id),
+    listDraftPosts(draft.id),
+  ]);
   const corpus = sessionDetail ? buildEvidenceCorpus(sessionDetail) : "";
   const assetNames = new Map(
     (sessionDetail?.media ?? []).map((asset) => [asset.id, asset.filename]),
@@ -264,6 +270,15 @@ export default async function DraftPage({
               </p>
             </div>
           </Card>
+
+          <PublishPanel
+            draftId={draft.id}
+            projectId={project.id}
+            approved={draft.status === "approved"}
+            accounts={projectAccounts.map((row) => row.account)}
+            posts={draftPosts}
+            hasVideo={Boolean(sessionDetail?.media.some((asset) => asset.kind === "video"))}
+          />
 
           <Card>
             <CardHeader title="Source" description="The analysis this draft came from." />

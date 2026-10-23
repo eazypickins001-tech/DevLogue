@@ -11,6 +11,7 @@ import {
   feedback,
   mediaAssets,
   projects,
+  publishingAccounts,
   scheduledPosts,
   sessionEvidence,
   storyboardScenes,
@@ -193,19 +194,69 @@ export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
 
 export async function getDashboardData(userId: string) {
   const db = getDb();
-  const [counts] = await db
-    .select({
-      projectCount: sql<number>`(select count(*)::int from ${projects} where ${projects.userId} = ${userId} and ${projects.archivedAt} is null)`,
-      sessionCount: sql<number>`(select count(*)::int from ${buildSessions} where ${buildSessions.userId} = ${userId})`,
-      draftCount: sql<number>`(select count(*)::int from ${contentDrafts} inner join ${projects} on ${contentDrafts.projectId} = ${projects.id} where ${projects.userId} = ${userId})`,
-      reviewCount: sql<number>`(select count(*)::int from ${contentDrafts} inner join ${projects} on ${contentDrafts.projectId} = ${projects.id} where ${projects.userId} = ${userId} and ${contentDrafts.status} in ('draft','needs_review'))`,
-      approvedCount: sql<number>`(select count(*)::int from ${contentDrafts} inner join ${projects} on ${contentDrafts.projectId} = ${projects.id} where ${projects.userId} = ${userId} and ${contentDrafts.status} = 'approved')`,
-      publishedCount: sql<number>`(select count(*)::int from ${contentDrafts} inner join ${projects} on ${contentDrafts.projectId} = ${projects.id} where ${projects.userId} = ${userId} and ${contentDrafts.status} = 'published')`,
-      failedCount: sql<number>`(select count(*)::int from ${contentDrafts} inner join ${projects} on ${contentDrafts.projectId} = ${projects.id} where ${projects.userId} = ${userId} and ${contentDrafts.status} = 'failed')`,
-      feedbackCount: sql<number>`(select count(*)::int from ${feedback} inner join ${projects} on ${feedback.projectId} = ${projects.id} where ${projects.userId} = ${userId})`,
-    })
-    .from(projects)
-    .limit(1);
+  const count = sql<number>`count(*)::int`;
+  const [
+    projectRows,
+    sessionRows,
+    draftRows,
+    reviewRows,
+    approvedRows,
+    publishedRows,
+    failedRows,
+    feedbackRows,
+  ] = await Promise.all([
+    db
+      .select({ value: count })
+      .from(projects)
+      .where(and(eq(projects.userId, userId), isNull(projects.archivedAt))),
+    db.select({ value: count }).from(buildSessions).where(eq(buildSessions.userId, userId)),
+    db
+      .select({ value: count })
+      .from(contentDrafts)
+      .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+      .where(eq(projects.userId, userId)),
+    db
+      .select({ value: count })
+      .from(contentDrafts)
+      .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+      .where(
+        and(
+          eq(projects.userId, userId),
+          sql`${contentDrafts.status} in ('draft','needs_review')`,
+        ),
+      ),
+    db
+      .select({ value: count })
+      .from(contentDrafts)
+      .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+      .where(and(eq(projects.userId, userId), eq(contentDrafts.status, "approved"))),
+    db
+      .select({ value: count })
+      .from(contentDrafts)
+      .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+      .where(and(eq(projects.userId, userId), eq(contentDrafts.status, "published"))),
+    db
+      .select({ value: count })
+      .from(contentDrafts)
+      .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+      .where(and(eq(projects.userId, userId), eq(contentDrafts.status, "failed"))),
+    db
+      .select({ value: count })
+      .from(feedback)
+      .innerJoin(projects, eq(feedback.projectId, projects.id))
+      .where(eq(projects.userId, userId)),
+  ]);
+
+  const counts = {
+    projectCount: projectRows[0]?.value ?? 0,
+    sessionCount: sessionRows[0]?.value ?? 0,
+    draftCount: draftRows[0]?.value ?? 0,
+    reviewCount: reviewRows[0]?.value ?? 0,
+    approvedCount: approvedRows[0]?.value ?? 0,
+    publishedCount: publishedRows[0]?.value ?? 0,
+    failedCount: failedRows[0]?.value ?? 0,
+    feedbackCount: feedbackRows[0]?.value ?? 0,
+  };
 
   const [recentSessions, reviewDrafts, upcoming, recentFeedback, latestUsage] = await Promise.all([
     db
@@ -258,16 +309,7 @@ export async function getDashboardData(userId: string) {
   ]);
 
   return {
-    counts: counts ?? {
-      projectCount: 0,
-      sessionCount: 0,
-      draftCount: 0,
-      reviewCount: 0,
-      approvedCount: 0,
-      publishedCount: 0,
-      failedCount: 0,
-      feedbackCount: 0,
-    },
+    counts,
     recentSessions,
     reviewDrafts,
     upcoming,
@@ -313,6 +355,45 @@ export async function listApprovedDrafts(userId: string) {
     .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
     .where(and(eq(projects.userId, userId), eq(contentDrafts.status, "approved")))
     .orderBy(desc(contentDrafts.updatedAt))
+    .limit(50);
+}
+
+export async function listProjectAccounts(userId: string, projectId: string) {
+  const db = getDb();
+  return db
+    .select({
+      account: publishingAccounts,
+    })
+    .from(publishingAccounts)
+    .innerJoin(projects, eq(publishingAccounts.projectId, projects.id))
+    .where(
+      and(
+        eq(publishingAccounts.projectId, projectId),
+        eq(projects.userId, userId),
+        eq(publishingAccounts.provider, "ghl"),
+      ),
+    )
+    .orderBy(publishingAccounts.platform, publishingAccounts.displayName);
+}
+
+export async function listDraftPosts(draftId: string) {
+  const db = getDb();
+  return db
+    .select()
+    .from(scheduledPosts)
+    .where(eq(scheduledPosts.draftId, draftId))
+    .orderBy(desc(scheduledPosts.createdAt));
+}
+
+export async function listProjectPosts(userId: string, projectId: string) {
+  const db = getDb();
+  return db
+    .select({ post: scheduledPosts, account: publishingAccounts })
+    .from(scheduledPosts)
+    .innerJoin(projects, eq(scheduledPosts.projectId, projects.id))
+    .leftJoin(publishingAccounts, eq(scheduledPosts.accountId, publishingAccounts.id))
+    .where(and(eq(scheduledPosts.projectId, projectId), eq(projects.userId, userId)))
+    .orderBy(desc(scheduledPosts.createdAt))
     .limit(50);
 }
 

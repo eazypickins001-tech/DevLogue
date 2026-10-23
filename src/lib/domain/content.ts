@@ -5,6 +5,8 @@ export type PlatformValue =
   | "x"
   | "tiktok"
   | "facebook"
+  | "threads"
+  | "bluesky"
   | "other";
 
 export const PLATFORM_LABELS: Record<PlatformValue, string> = {
@@ -14,6 +16,8 @@ export const PLATFORM_LABELS: Record<PlatformValue, string> = {
   x: "X",
   tiktok: "TikTok",
   facebook: "Facebook",
+  threads: "Threads",
+  bluesky: "Bluesky",
   other: "Other",
 };
 

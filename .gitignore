@@ -16,3 +16,5 @@ media/
 .DS_Store
 Thumbs.db
 *.log
+.smoke-failure.png
+.vercel

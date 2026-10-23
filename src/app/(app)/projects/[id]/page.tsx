@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isDatabaseConfigured } from "@/db";
 import { deleteProjectData, toggleProjectArchive, updateProject } from "@/app/actions/projects";
+import { AccountPicker } from "@/components/account-picker";
 import { ProjectForm } from "@/components/project-form";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -19,7 +20,7 @@ import {
   mutedLinkClass,
 } from "@/components/ui";
 import { getOwner, requireSession } from "@/lib/auth";
-import { getProject, listDraftsForProject, listSessions } from "@/lib/queries";
+import { getProject, listDraftsForProject, listProjectAccounts, listSessions } from "@/lib/queries";
 import {
   DRAFT_STATUS_LABELS,
   SESSION_STATUS_LABELS,
@@ -27,6 +28,7 @@ import {
   formatDate,
 } from "@/lib/labels";
 import { CONTENT_FORMATS, type ContentFormatValue } from "@/lib/domain/content";
+import { isTestMode } from "@/lib/domain/publishing";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +59,10 @@ export default async function ProjectDetailPage({
   const project = await getProject(owner.id, id);
   if (!project) notFound();
 
-  const [sessions, drafts] = await Promise.all([
+  const [sessions, drafts, accounts] = await Promise.all([
     listSessions(owner.id, project.id),
     listDraftsForProject(owner.id, project.id),
+    listProjectAccounts(owner.id, project.id),
   ]);
 
   return (
@@ -243,6 +246,24 @@ export default async function ProjectDetailPage({
                 </div>
               ) : null}
             </dl>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Publishing accounts"
+              description="Choose which HighLevel accounts this project may post to."
+            />
+            <div className="p-5">
+              <AccountPicker
+                projectId={project.id}
+                saved={accounts.map(({ account }) => ({
+                  externalAccountId: account.externalAccountId,
+                  platform: account.platform,
+                  displayName: account.displayName,
+                }))}
+                testMode={isTestMode()}
+              />
+            </div>
           </Card>
 
           <Card>

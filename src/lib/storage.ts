@@ -85,6 +85,17 @@ export async function headObject(
   return { size, contentType: response.headers.get("content-type") };
 }
 
+export async function readObjectStream(key: string): Promise<Response> {
+  const signed = await client().sign(objectUrl(key), { method: "GET" });
+  return fetch(signed.url, { method: "GET", headers: signed.headers });
+}
+
+export async function readObjectBytes(key: string): Promise<Uint8Array> {
+  const response = await readObjectStream(key);
+  if (!response.ok) throw new Error(`R2 read failed with status ${response.status}.`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 export async function probeStorage(): Promise<{ ok: boolean; detail: string }> {
   try {
     const signed = await client().sign(objectUrl("__devlogue_probe__"), { method: "HEAD" });

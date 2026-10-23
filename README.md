@@ -1,21 +1,24 @@
 # DevLogue
 
-Build in public from real work. DevLogue turns documented development sessions into evidence-based social content, storyboards and approved posts — without inventing results.
+Build in public from real work. DevLogue turns documented development sessions into evidence-based social content, storyboards and HighLevel draft posts — without inventing results.
 
-The original product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## What works today
 
 - Multi-project workspace with stage, audience, positioning, exclusions and platform preferences.
-- Build-session capture: manual notes, structured evidence (commits, PRs, releases, issues, notes).
-- Private media uploads to Cloudflare R2 with presigned PUT, size/type validation and magic-byte checks.
+- Build-session capture: manual notes plus structured evidence (commits, PRs, releases, issues, notes).
+- Private media uploads to Cloudflare R2 with presigned PUT, size/type validation, magic-byte checks and signed reads.
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
-- On-demand content generation (max 3 formats per batch) for 14 formats including captions, threads, outlines, changelog and short-video storyboards.
-- Storyboards with scene durations normalized to the target runtime and scenes mapped to uploaded assets.
-- Versioned drafts: AI output, your edits, and the approved version are separate records.
-- Deterministic quality checks: platform limits, generic-phrase warnings, hype punctuation, unsupported numbers.
-- Approval workflow that never publishes anything automatically.
-- Content studio, publishing calendar handoff view, feedback inbox, analytics from your own data, integration status and read-only connection checks.
+- On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
+- Storyboards with durations normalized to the target runtime and scenes mapped to uploaded media.
+- Versioned drafts: AI output, user edits and the approved version are separate records.
+- Deterministic quality checks: platform limits, generic phrases, hype punctuation, unsupported numbers.
+- GoHighLevel Social Planner handoff: discover accounts, select per project, upload media, create **drafts** or **scheduled** posts, log jobs, remove drafts.
+- Test mode by default (`GHL_TEST_MODE=true`): posts are created as HighLevel drafts and never published.
+- Content studio, calendar, feedback inbox, analytics from your own data, integration status and read-only connection checks.
+
+Verified end-to-end locally with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → draft removal → project deletion.
 
 ## Stack
 
@@ -26,18 +29,17 @@ The original product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROM
 | Database | Neon Postgres via `@neondatabase/serverless` + Drizzle ORM | Free tier, HTTP driver, no Prisma engine on serverless |
 | Storage | Cloudflare R2 (S3 API) via `aws4fetch` | 10GB free, no egress fees, presigned URLs |
 | AI | OpenRouter or any OpenAI-compatible endpoint | Provider-agnostic, per-task model selection |
+| Publishing | GoHighLevel Social Planner v2 | Verified accounts, media upload, draft/scheduled posts |
 | Auth | Single password + HMAC-signed cookie | Free, adequate for a single-user workspace |
-| Tests | Vitest | Fast unit tests for pure logic |
-
-Media processing (FFmpeg/Whisper) is intentionally **not** part of the web request path. See limitations.
+| Tests | Vitest + a Playwright smoke script | Fast unit tests plus a real integration flow |
 
 ## Requirements
 
-- Node.js 22+
-- pnpm 10+
+- Node.js 22+ and pnpm 10+
 - A free [Neon](https://neon.tech) Postgres project
-- A Cloudflare account with an R2 bucket (optional until you upload media)
-- An OpenRouter API key or an OpenAI-compatible endpoint (optional until you analyze/generate)
+- A Cloudflare account with an R2 bucket
+- An OpenRouter API key (or another OpenAI-compatible endpoint)
+- A HighLevel sub-account with connected social accounts and a Private Integration Token
 
 ## Local setup
 
@@ -49,46 +51,41 @@ Copy-Item .env.example .env.local
 Generate an auth secret:
 
 ```powershell
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
 ```
 
 Fill `.env.local`:
 
 ```dotenv
-APP_PASSWORD=<a long password you will remember>
-AUTH_SECRET=<paste the generated value>
+APP_PASSWORD=<a long password>
+AUTH_SECRET=<generated value>
 OWNER_EMAIL=you@example.com
+APP_PUBLIC_URL=
 DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require
 ```
 
-Apply the database schema:
+Apply the schema and start the app:
 
 ```powershell
 pnpm db:migrate
-```
-
-Start the app:
-
-```powershell
 pnpm dev
 ```
 
 Open `http://localhost:3000`, sign in, create a project, then capture a session.
 
-### Cloudflare R2 (optional, for uploads)
+### Cloudflare R2 (current dashboard)
 
-1. Create a bucket.
-2. Create an R2 API token with **Object Read & Write** scoped to that bucket.
-3. Add to `.env.local`:
-
-```dotenv
-R2_ACCOUNT_ID=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET=devlogue-media
-```
-
-4. Add a CORS policy on the bucket (allowed origins must include your app origin):
+1. **R2 object storage → Create bucket** (e.g. `devlogue-media`). Keep public access off.
+   Note the bucket jurisdiction. Default jurisdiction uses `<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+2. **R2 → Overview → Account Details → API Tokens → Manage**
+   - Create an **Account API token** (server-side) or **User API token**
+   - Permissions: **Object Read & Write**
+   - Scope: only `devlogue-media`
+   - Copy the **Access Key ID** and **Secret Access Key** immediately (secret shown once)
+   - Cloudflare requires R2 to be activated (payment method on file) before tokens can be created; the free allowance still applies.
+3. **Bucket → Settings → CORS Policy → Add CORS policy → JSON**, paste:
 
 ```json
 [
@@ -102,19 +99,32 @@ R2_BUCKET=devlogue-media
 ]
 ```
 
-Uploads are private. The app serves them through `/api/media/[id]`, which checks the session cookie and redirects to a 5-minute signed URL.
+4. Add to `.env.local`:
+
+```dotenv
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=devlogue-media
+```
+
+If the bucket was created in a jurisdiction (EU/US/FedRAMP), set `R2_ENDPOINT` to the jurisdiction endpoint instead of the default. The current implementation uses the default endpoint; contact the maintainer before using a jurisdictional bucket.
+
+Uploads are private. Uploads go browser → R2 via presigned PUT, then the server verifies size and magic bytes. Reads go through `/api/media/[id]`, which requires the session cookie and redirects to a five-minute signed URL.
 
 ### AI provider
 
-OpenRouter:
+Free OpenRouter model (current default):
 
 ```dotenv
 AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=...
-AI_MODEL=openai/gpt-4o-mini
-AI_MODEL_ANALYSIS=openai/gpt-4o-mini
-AI_MODEL_CONTENT=openai/gpt-4o-mini
+AI_MODEL=recursive/flint-v1.0:free
+AI_MODEL_ANALYSIS=recursive/flint-v1.0:free
+AI_MODEL_CONTENT=recursive/flint-v1.0:free
 ```
+
+Reasoning models spend completion tokens on hidden reasoning. DevLogue caps reasoning at 1024 tokens, requests JSON mode, validates with Zod, and repairs malformed JSON once. If output still fails, it reports the error instead of silently switching to a paid model.
 
 Any OpenAI-compatible endpoint:
 
@@ -125,26 +135,48 @@ AI_API_KEY=...
 AI_MODEL=...
 ```
 
-Models are never hardcoded. If no model is configured, analysis and generation fail with an explicit message instead of guessing. Token usage is recorded; cost is stored only when the provider returns it.
+Models are never hardcoded. Token usage is recorded; cost appears only when the provider reports it.
 
-### GoHighLevel (optional, phase 4)
+### GoHighLevel
 
-Create a Private Integration Token with Social Planner scopes, then:
+Create a Private Integration Token with:
+
+- `socialplanner/account.readonly`
+- `socialplanner/post.readonly`
+- `socialplanner/post.write`
+- `medias.readwrite` (or `medias.readonly` + `medias.write`)
+- `users.readonly`
+
+Then:
 
 ```dotenv
-GHL_API_TOKEN=...
-GHL_LOCATION_ID=...
-GHL_USER_ID=...
-GHL_DEFAULT_ACCOUNT_IDS=
+GHL_API_TOKEN=
+GHL_LOCATION_ID=
 GHL_TEST_MODE=true
 ```
 
-Verified endpoints used by the adapter design:
+`GHL_USER_ID` is optional; DevLogue discovers it with `GET /users/?locationId=`.
 
-- `GET https://services.leadconnectorhq.com/social-media-posting/{locationId}/accounts`
-- `POST https://services.leadconnectorhq.com/social-media-posting/{locationId}/posts` with header `Version: 2021-07-28`
+Flow:
 
-The create-post body requires `accountIds`, `type` and `userId`; `summary`, `media`, `scheduleDate` and `status` (`draft`/`scheduled`/`published`) are optional. **This build does not schedule live posts.** Approved drafts are shown in the calendar for manual handoff until credentials and account IDs are verified. There is no silent fallback to fake publishing.
+1. Open a project → **Publishing accounts** → **Load accounts from HighLevel** → select accounts → save.
+2. Approve a draft in the studio.
+3. In **Publishing handoff**, choose accounts and submit. With test mode on, HighLevel receives `status: draft`; the schedule fields are ignored.
+4. Set `GHL_TEST_MODE=false` to send `status: scheduled` with the chosen time. This path is implemented but has not been published to a live account yet.
+
+Verified endpoints:
+
+- `GET /social-media-posting/{locationId}/accounts`
+- `GET /users/?locationId=`
+- `POST /medias/upload-file` (direct multipart, or `hosted:true` with a public URL)
+- `POST /social-media-posting/{locationId}/posts` (`Version: 2021-07-28`)
+- `DELETE /social-media-posting/{locationId}/posts/{id}`
+
+Media strategy:
+
+- **Local / small files (≤25MB):** direct multipart upload to HighLevel.
+- **Production:** DevLogue serves a signed, expiring handoff URL at `/api/publishing-media/[token]`; HighLevel fetches it as `hosted` media. Set `APP_PUBLIC_URL` to the public HTTPS origin.
+- HighLevel's fetcher does not reliably read private R2 presigned URLs; the handoff route exists because of that verified failure.
 
 ## Quality gates
 
@@ -155,55 +187,65 @@ pnpm test
 pnpm build
 ```
 
+Integration smoke (needs `.env.local`, a running server on port 3000, valid R2/AI/GHL credentials, and creates then deletes a real HighLevel draft):
+
+```powershell
+pnpm smoke
+```
+
 ## Deployment (Vercel)
 
-1. Push this repository to GitHub.
-2. Import the repo in Vercel (framework preset: Next.js; no build overrides needed).
-3. Add the environment variables from `.env.local` in Vercel Project Settings.
-4. Run migrations against the production database once from your machine:
+1. Push the repository to GitHub.
+2. Import it in Vercel (Next.js preset, personal scope project `devlogue`).
+3. Add every variable from `.env.local`, plus `APP_PUBLIC_URL=https://<production-url>`.
+4. Run migrations against production once:
    ```powershell
    $env:DATABASE_URL="postgresql://..."; pnpm db:migrate
    ```
-5. Deploy. Update the R2 CORS policy with the production origin.
+5. Deploy, then add the production origin to the R2 CORS policy.
+6. Keep `GHL_TEST_MODE=true` until you have verified drafts with your real accounts.
 
-Server actions call AI providers sequentially. On Vercel Hobby (60s function limit), keep content batches small; the UI caps a batch at 3 formats.
+Server actions that call AI are capped at 60 seconds (`maxDuration`) because of Vercel Hobby limits. Generate at most three formats per batch.
 
 ## Data, privacy and retention
 
-- AI prompts contain session text and evidence text only. Media files are never sent to the AI provider by this app.
-- Project `sensitiveNotes` are shown only in the UI and are not included in prompts; `publicationExclusions` are project context.
-- Uploaded assets are private by default and served through an authenticated route.
-- Deleting a project cascades sessions, evidence, drafts and feedback in Postgres. R2 objects must be deleted per asset (the media delete action removes both).
-- There is no automatic purge job. Delete data explicitly.
+- AI prompts contain session and evidence text only. Media files are never sent to the model provider.
+- Uploads are private; reads require an authenticated session and return a short-lived signed URL.
+- Publishing media is exposed only through a short-lived, HMAC-signed handoff URL for HighLevel.
+- Deleting a project cascades sessions, evidence, drafts and feedback in Postgres. R2 objects must be deleted per asset.
+- No automatic purge job. Delete data explicitly.
 
 ## Known limitations
 
-- **No automated video rendering.** Storyboards, scene-to-asset mapping and editing instructions are complete; assembly requires FFmpeg/Whisper locally. Neither is installed on this machine.
-- **No live publishing.** GHL scheduling is implemented as a documented adapter target with handoff UI, gated on verified credentials.
-- **No audience analytics import.** Views/likes/waitlist numbers are manual; the analytics page says so.
-- **No GitHub API sync yet.** Evidence is captured manually (commit URLs, PR links, release notes). This avoids storing a GitHub token and keeps the first version dependency-free.
-- **Single-user auth.** The schema keeps `userId` so multi-user can be added without a rewrite.
-- Content regeneration keeps old versions but does not diff them visually.
+- **Video rendering is not automated.** Storyboards, scene mapping, captions and editing instructions work; assembly needs a local FFmpeg/Whisper worker (not installed).
+- **Scheduled publishing is untested live.** Draft creation is verified; `GHL_TEST_MODE=false` scheduling has not been exercised against a real account.
+- **TikTok/YouTube platform-specific fields** (privacy, title, etc.) are not sent yet; drafts may need manual adjustment in HighLevel.
+- **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
+- **No audience analytics import.** Views/likes/waitlist numbers are manual by design.
+- **Single-user auth.**
+- Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.
+- R2 jurisdictional buckets need an endpoint override that is not implemented yet.
 
 ## First-use workflow
 
-1. Create a project: problem, target users, tone, platform list, publication exclusions.
-2. Work as usual with a screen recorder running.
-3. Capture a session: what you worked on, the problem, what changed, what failed, next task.
-4. Add evidence: commit/PR links, release notes, screenshots, recordings, transcript excerpts. Mark verified items.
-5. Analyze the session. Review evidence gaps and unverified claims.
-6. Generate only the formats you will publish (max 3 per batch).
-7. Edit in the studio; every save creates a version. Fix quality warnings.
-8. Approve the version. Nothing is published by approving.
-9. Use the calendar handoff view to schedule in HighLevel or publish manually.
+1. Create a project: problem, users, tone, platform list, publication exclusions.
+2. Open **Publishing accounts**, load HighLevel accounts, select the targets, save.
+3. Work as usual with a screen recorder running.
+4. Capture a session: what you worked on, the problem, what changed, what failed, next task.
+5. Add evidence: commit/PR links, release notes, screenshots, recordings, transcript excerpts. Mark what you verified.
+6. Analyze the session. Review evidence gaps and unverified claims.
+7. Generate only the formats you will publish (max 3 per batch).
+8. Edit in the studio; every save creates a version. Fix quality warnings.
+9. Approve the version. Approval alone publishes nothing.
+10. Use **Publishing handoff** to create a HighLevel draft. Verify it in Social Planner. Enable real scheduling only when ready.
 
 ## Cost
 
 | Service | Cost |
 | --- | --- |
-| Vercel Hobby | Free |
+| Vercel Hobby | Free within limits |
 | Neon free tier | Free within limits |
-| Cloudflare R2 | 10GB storage free; requests/past free tier are paid |
-| OpenRouter | Pay per token; exact price depends on the chosen model |
-| GoHighLevel | Requires your existing subscription |
-| FFmpeg / Whisper | Free, local |
+| Cloudflare R2 | 10GB free; requests beyond the free tier are paid |
+| OpenRouter free models | $0, with daily/rate limits |
+| HighLevel | Requires your existing subscription |
+| FFmpeg / Whisper (future) | Free, local |
