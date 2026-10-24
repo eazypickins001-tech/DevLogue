@@ -183,6 +183,22 @@ export const users = pgTable(
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
 );
 
+export const loginTokens = pgTable(
+  "login_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("login_tokens_email_created_idx").on(table.email, table.createdAt),
+    index("login_tokens_expires_idx").on(table.expiresAt),
+  ],
+);
 export const projects = pgTable(
   "projects",
   {

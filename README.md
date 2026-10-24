@@ -15,10 +15,12 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Versioned drafts: AI output, user edits and the approved version are separate records.
 - Deterministic quality checks: platform limits, generic phrases, hype punctuation, unsupported numbers.
 - GoHighLevel Social Planner handoff: discover accounts, select per project, upload media, create **drafts** or **scheduled** posts, log jobs, remove drafts.
-- Test mode by default (`GHL_TEST_MODE=true`): posts are created as HighLevel drafts and never published.
+- Test mode (`GHL_TEST_MODE=true`, the documented default): posts are created as HighLevel drafts and never published.
 - Content studio, calendar, feedback inbox, analytics from your own data, integration status and read-only connection checks.
 
-Verified end-to-end locally with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → draft removal → project deletion.
+Verified end-to-end with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → removal → cleanup. A real scheduled post was also created against the Ai4Beginners Facebook page (10:00 Africa/Kigali → 08:00Z), confirmed as `scheduled` in HighLevel, then deleted before publication.
+
+**Live app:** https://devlogue-live.vercel.app
 
 ## Stack
 
@@ -30,7 +32,7 @@ Verified end-to-end locally with Playwright: login → project → GHL account s
 | Storage | Cloudflare R2 (S3 API) via `aws4fetch` | 10GB free, no egress fees, presigned URLs |
 | AI | OpenRouter or any OpenAI-compatible endpoint | Provider-agnostic, per-task model selection |
 | Publishing | GoHighLevel Social Planner v2 | Verified accounts, media upload, draft/scheduled posts |
-| Auth | Single password + HMAC-signed cookie | Free, adequate for a single-user workspace |
+| Auth | Email OTP (Resend) + password fallback, HMAC-signed cookie | Free, single-user, no password manager needed |
 | Tests | Vitest + a Playwright smoke script | Fast unit tests plus a real integration flow |
 
 ## Requirements
@@ -74,6 +76,20 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`, sign in, create a project, then capture a session.
+
+### Sign-in
+
+Email codes are the primary path. Add:
+
+```dotenv
+RESEND_API_KEY=re_...
+AUTH_EMAIL_FROM=DevLogue <onboarding@resend.dev>
+OWNER_EMAIL=you@example.com
+```
+
+Sign in with the owner email, receive a six-digit code (valid 10 minutes, single use, five attempts), and continue. The password form stays available under "Use the password instead".
+
+Resend's free tier allows 3,000 emails/month (100/day). Until a domain is verified in Resend, `onboarding@resend.dev` can only send to the Resend account owner's address, which is exactly the single-user case.
 
 ### Cloudflare R2 (current dashboard)
 
@@ -218,12 +234,12 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 ## Known limitations
 
 - **Video rendering is not automated.** Storyboards, scene mapping, captions and editing instructions work; assembly needs a local FFmpeg/Whisper worker (not installed).
-- **Scheduled publishing is untested live.** Draft creation is verified; `GHL_TEST_MODE=false` scheduling has not been exercised against a real account.
+- **Platform-specific fields** for TikTok, YouTube and Threads (privacy, title, etc.) are not sent yet; verify drafts in Social Planner before scheduling.
 - **TikTok/YouTube platform-specific fields** (privacy, title, etc.) are not sent yet; drafts may need manual adjustment in HighLevel.
 - **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
 - **No audience analytics import.** Views/likes/waitlist numbers are manual by design.
 - **Single-user auth.**
-- Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.
+- Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.\n- Email OTP delivery requires a Resend API key. Without it, the password form is used.
 - R2 jurisdictional buckets need an endpoint override that is not implemented yet.
 
 ## First-use workflow

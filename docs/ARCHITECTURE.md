@@ -5,6 +5,7 @@
 - **Next.js App Router on Vercel.** Every workspace route is `force-dynamic`; no database access happens at build time.
 - **Server-only modules** (`src/lib/auth.ts`, `src/lib/queries.ts`, `src/lib/storage.ts`, `src/lib/ai/provider.ts`) import `server-only`. Secrets never enter the client bundle.
 - **Server actions** perform every mutation. Each action re-checks the session cookie and scopes queries by the owner's `userId`; UI hiding is not treated as authorization.
+- **Auth** supports email OTP and password. OTP codes are six digits, valid for 10 minutes, stored only as an HMAC-SHA256 hash keyed by `email + code + AUTH_SECRET`, single use, and capped at five attempts. Request and verify paths are rate-limited per IP and per email. The password remains a fallback so a mail outage does not lock the owner out.
 - **No middleware.** The `(app)` route group layout gates rendering, and each action independently guards. This avoids Next 16 middleware/proxy churn and prevents a bypass if a route is moved.
 
 ## Data model

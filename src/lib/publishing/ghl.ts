@@ -186,9 +186,7 @@ export async function createGhlPost(input: GhlPostInput): Promise<GhlPostResult>
   if (input.status === "scheduled" && input.scheduledAt) {
     body.scheduleDate = input.scheduledAt.toISOString();
   }
-  if (input.media && input.media.length > 0) {
-    body.media = input.media;
-  }
+  body.media = input.media ?? [];
   for (const [key, value] of Object.entries(body)) {
     if (value === undefined || value === null) delete body[key];
   }

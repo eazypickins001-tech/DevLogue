@@ -419,8 +419,11 @@ export async function deleteScheduledPost(formData: FormData): Promise<void> {
     .limit(1);
   const post = rows[0]?.post;
   if (!post) redirectError(`/studio/${draftId}`, "Post not found.");
-  if (!["draft", "failed"].includes(post.status)) {
-    redirectError(`/studio/${draftId}`, "Only draft or failed posts can be removed from DevLogue.");
+  if (!["draft", "failed", "scheduled"].includes(post.status)) {
+    redirectError(
+      `/studio/${draftId}`,
+      "Only draft, failed or scheduled posts can be removed from DevLogue.",
+    );
   }
   if (post.externalPostId && isGhlConfigured()) {
     try {

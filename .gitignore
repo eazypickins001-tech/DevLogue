@@ -18,3 +18,4 @@ Thumbs.db
 *.log
 .smoke-failure.png
 .vercel
+*-failure.png

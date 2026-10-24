@@ -158,7 +158,7 @@ export function PublishPanel({
                     {post.timezone}
                   </p>
                   {post.error ? <p className="mt-1 text-xs text-rose-700">{post.error}</p> : null}
-                  {["draft", "failed"].includes(post.status) ? (
+                  {["draft", "failed", "scheduled"].includes(post.status) ? (
                     <form action={deleteScheduledPost} className="mt-2">
                       <input type="hidden" name="postId" value={post.id} />
                       <input type="hidden" name="draftId" value={draftId} />
