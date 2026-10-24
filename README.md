@@ -20,7 +20,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 
 Verified end-to-end with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → removal → cleanup. A real scheduled post was also created against the Ai4Beginners Facebook page (10:00 Africa/Kigali → 08:00Z), confirmed as `scheduled` in HighLevel, then deleted before publication.
 
-**Live app:** https://devlogue-live.vercel.app
+**Live app:** https://devlogue-prod.vercel.app
 
 ## Stack
 
@@ -241,6 +241,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - **Single-user auth.**
 - Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.\n- Email OTP delivery requires a Resend API key. Without it, the password form is used.
 - R2 jurisdictional buckets need an endpoint override that is not implemented yet.
+- **Vercel Next.js 16 / Hobby deployment bug:** after the first successful build, later deployments can stick at `UNKNOWN` with 0ms build time and no logs. Workaround that works: `vercel redeploy` the last good deployment, or create a fresh project. This is a platform issue, not a build failure.
 
 ## First-use workflow
 

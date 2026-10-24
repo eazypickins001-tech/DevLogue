@@ -20,3 +20,4 @@ Thumbs.db
 .vercel
 *-failure.png
 .dev-server.pid
+.prod-prod-failure.png
