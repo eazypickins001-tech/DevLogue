@@ -19,3 +19,4 @@ Thumbs.db
 .smoke-failure.png
 .vercel
 *-failure.png
+.dev-server.pid
