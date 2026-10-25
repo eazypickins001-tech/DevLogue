@@ -11,6 +11,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Private media uploads to Cloudflare R2 with presigned PUT, size/type validation, magic-byte checks and signed reads.
 - Screen/camera recording: raw screen, camera, microphone and system-audio tracks; camera PiP can be off, recorded-only or visible; 16:9/9:16; saves to a session and creates an editable timeline.
 - Timeline v1: multi-track preview, trim/timing inspector, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
+- Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
 - On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
 - Storyboards with durations normalized to the target runtime and scenes mapped to uploaded media.

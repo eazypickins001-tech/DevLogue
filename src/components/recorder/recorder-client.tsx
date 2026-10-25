@@ -121,7 +121,13 @@ function getSupportServerSnapshot(): boolean {
   return false;
 }
 
-export function RecorderClient({ sessions }: { sessions: SessionOption[] }) {
+export function RecorderClient({
+  sessions,
+  initialSessionId,
+}: {
+  sessions: SessionOption[];
+  initialSessionId?: string;
+}) {
   const [options, setOptions] = useState<RecordingOptions>(DEFAULT_RECORDING_OPTIONS);
   const [status, setStatus] = useState<Status>("idle");
   const [streams, setStreams] = useState<CaptureStreams | null>(null);
@@ -130,7 +136,12 @@ export function RecorderClient({ sessions }: { sessions: SessionOption[] }) {
   const [duration, setDuration] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState(sessions[0]?.id ?? "");
+  const [sessionId, setSessionId] = useState(() => {
+    if (initialSessionId && sessions.some((session) => session.id === initialSessionId)) {
+      return initialSessionId;
+    }
+    return sessions[0]?.id ?? "";
+  });
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveProgress, setSaveProgress] = useState(0);
@@ -188,6 +199,7 @@ export function RecorderClient({ sessions }: { sessions: SessionOption[] }) {
   const needsScreen = options.source !== "camera";
   const needsCamera = options.source === "camera" || (screenCamera && options.cameraMode !== "off");
   const controlsDisabled = busy;
+  const selectedSession = sessions.find((session) => session.id === sessionId) ?? null;
 
   function update<K extends keyof RecordingOptions>(key: K, value: RecordingOptions[K]): void {
     setOptions((current) => ({ ...current, [key]: value }));
@@ -498,22 +510,17 @@ export function RecorderClient({ sessions }: { sessions: SessionOption[] }) {
             </div>
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-wrap items-end gap-3">
-                <label className="min-w-[220px] flex-1">
-                  <span className={labelClass}>Save to session</span>
-                  <select
-                    className={`${inputClass} mt-1`}
-                    value={sessionId}
-                    disabled={saveStatus === "saving" || saveStatus === "saved"}
-                    onChange={(event) => setSessionId(event.target.value)}
-                  >
-                    {sessions.length === 0 ? <option value="">No sessions yet</option> : null}
-                    {sessions.map((session) => (
-                      <option key={session.id} value={session.id}>
-                        {session.projectName} - {session.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="min-w-[220px] flex-1">
+                  <span className={labelClass}>Destination</span>
+                  <p className="mt-1 text-sm text-slate-900">
+                    {selectedSession
+                      ? `${selectedSession.projectName} - ${selectedSession.title}`
+                      : "No session selected"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Saving uploads the raw tracks and opens this session in the video editor.
+                  </p>
+                </div>
                 <button
                   type="button"
                   className={buttonPrimary}
@@ -587,6 +594,39 @@ export function RecorderClient({ sessions }: { sessions: SessionOption[] }) {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-900">Capture</h2>
           <div className="mt-3 space-y-4">
+            <div>
+              <label className="block">
+                <span className={labelClass}>Editing studio destination</span>
+                <select
+                  className={`${inputClass} mt-1`}
+                  value={sessionId}
+                  disabled={
+                    controlsDisabled || saveStatus === "saving" || saveStatus === "saved"
+                  }
+                  onChange={(event) => setSessionId(event.target.value)}
+                >
+                  {sessions.length === 0 ? <option value="">No sessions yet</option> : null}
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.projectName} - {session.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {sessions.length === 0 ? (
+                <p className={hintClass}>
+                  <Link className="font-medium text-indigo-700" href="/sessions/new">
+                    Create a build session
+                  </Link>{" "}
+                  before recording.
+                </p>
+              ) : (
+                <p className={hintClass}>
+                  Saving creates a timeline in this session and opens the video editor.
+                </p>
+              )}
+            </div>
+
             <div>
               <span className={labelClass}>Source</span>
               <div className="mt-2 grid gap-2">

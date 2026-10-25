@@ -28,7 +28,8 @@ import {
 import { getOwner, requireSession } from "@/lib/auth";
 import { isAiConfigured } from "@/lib/env";
 import { isStorageConfigured } from "@/lib/storage";
-import { getSessionDetail, listProjects } from "@/lib/queries";
+import { getSessionDetail, listProjects, listTimelinesForSession } from "@/lib/queries";
+import { formatDuration } from "@/lib/recording/types";
 import {
   DRAFT_STATUS_LABELS,
   EVIDENCE_KIND_LABELS,
@@ -72,7 +73,10 @@ export default async function SessionDetailPage({
   const owner = await getOwner();
   const detail = await getSessionDetail(owner.id, id);
   if (!detail) notFound();
-  const projects = await listProjects(owner.id);
+  const [projects, sessionTimelines] = await Promise.all([
+    listProjects(owner.id),
+    listTimelinesForSession(owner.id, id),
+  ]);
 
   const { session, project, evidence, media, analyses, drafts } = detail;
   const analysis = analyses.find((item) => item.status === "succeeded" && item.summary);
@@ -91,6 +95,9 @@ export default async function SessionDetailPage({
               {session.publishable ? "Safe to publish" : "Privacy review needed"}
             </Badge>
             <Badge tone="neutral">{SESSION_STATUS_LABELS[session.status] ?? session.status}</Badge>
+            <Link className={mutedLinkClass} href={`/record?sessionId=${session.id}`}>
+              Record
+            </Link>
             <Link className={mutedLinkClass} href={`/projects/${project.id}`}>
               Project
             </Link>
@@ -281,6 +288,63 @@ export default async function SessionDetailPage({
                 ))}
               </ul>
             ) : null}
+          </Card>
+
+          <Card id="video-editor">
+            <CardHeader
+              title="Video editor"
+              description="Recordings become multi-track timelines here. Raw tracks stay in R2 and the timeline references them by asset id."
+              action={
+                <Link className={mutedLinkClass} href={`/record?sessionId=${session.id}`}>
+                  Record
+                </Link>
+              }
+            />
+            {sessionTimelines.length === 0 ? (
+              <div className="space-y-3 p-5 text-sm text-slate-600">
+                <p>No timeline for this session yet.</p>
+                <p>
+                  Recording from this session will upload the raw screen, camera and audio tracks,
+                  create a recording, and open the video editor with the tracks already placed.
+                </p>
+                <Link className={buttonSecondary} href={`/record?sessionId=${session.id}`}>
+                  Record this session
+                </Link>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {sessionTimelines.map(({ timeline, clipCount }) => (
+                  <li key={timeline.id}>
+                    <Link
+                      href={`/timelines/${timeline.id}`}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 no-underline transition hover:bg-slate-50"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{timeline.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {timeline.aspectRatio} - {formatDuration(Number(timeline.durationSeconds))} -{" "}
+                          {clipCount} clip{clipCount === 1 ? "" : "s"} - v{timeline.version}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          tone={
+                            timeline.status === "rendered"
+                              ? "success"
+                              : timeline.status === "failed"
+                                ? "danger"
+                                : "warning"
+                          }
+                        >
+                          {timeline.status}
+                        </Badge>
+                        <span className={linkClass}>Open editor</span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
 
           {summary && analysis ? (

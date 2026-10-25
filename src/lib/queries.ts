@@ -156,6 +156,24 @@ export async function listTimelines(userId: string) {
     .limit(50);
 }
 
+export async function listTimelinesForSession(userId: string, sessionId: string) {
+  const db = getDb();
+  return db
+    .select({
+      timeline: timelineProjects,
+      clipCount: sql<number>`(select coalesce(sum(jsonb_array_length(track->'clips')), 0)::int from jsonb_array_elements(${timelineProjects.document}->'tracks') as track)`,
+    })
+    .from(timelineProjects)
+    .where(
+      and(
+        eq(timelineProjects.userId, userId),
+        eq(timelineProjects.sessionId, sessionId),
+      ),
+    )
+    .orderBy(desc(timelineProjects.updatedAt))
+    .limit(20);
+}
+
 export async function listTimelineRenderJobs(timelineId: string) {
   const db = getDb();
   return db

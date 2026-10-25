@@ -9,7 +9,7 @@ const LINKS = [
   { href: "/projects", label: "Projects" },
   { href: "/sessions", label: "Build Sessions" },
   { href: "/record", label: "Record" },
-  { href: "/timelines", label: "Timelines" },
+  { href: "/timelines", label: "Video Editor" },
   { href: "/studio", label: "Content Studio" },
   { href: "/video", label: "Video Production" },
   { href: "/calendar", label: "Publishing Calendar" },

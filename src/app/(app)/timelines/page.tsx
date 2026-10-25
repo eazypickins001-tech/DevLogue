@@ -14,7 +14,7 @@ export default async function TimelinesPage() {
   if (!isDatabaseConfigured()) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Timelines" />
+        <PageHeader title="Video Editor" />
         <SetupNotice title="Database required">
           Set <code className="font-mono">DATABASE_URL</code> and run{" "}
           <code className="font-mono">pnpm db:migrate</code>.
@@ -29,7 +29,7 @@ export default async function TimelinesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Timelines"
+        title="Video Editor"
         description="Recordings become editable multi-track timelines. Camera overlay visibility and 16:9/9:16 framing stay editable."
         actions={
           <Link className={linkClass} href="/record">

@@ -7,7 +7,12 @@ import { listSessions } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function RecordPage() {
+export default async function RecordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sessionId?: string }>;
+}) {
+  const { sessionId } = await searchParams;
   await requireSession();
 
   if (!isDatabaseConfigured()) {
@@ -41,7 +46,7 @@ export default async function RecordPage() {
           </Link>
         }
       />
-      <RecorderClient sessions={sessions} />
+      <RecorderClient sessions={sessions} initialSessionId={sessionId} />
     </div>
   );
 }
