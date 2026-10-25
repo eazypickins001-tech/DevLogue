@@ -182,6 +182,28 @@ export async function createRecording(input: CreateRecordingInput): Promise<Crea
   const timelineRow = timeline[0];
   if (!timelineRow) return { ok: false, error: "Could not create the timeline." };
 
+  for (const track of tracks) {
+    if (track.track !== "microphone" && track.track !== "system") continue;
+    const existing = await db
+      .select({ id: transcripts.id })
+      .from(transcripts)
+      .where(eq(transcripts.mediaAssetId, track.assetId))
+      .limit(1);
+    if (existing.length > 0) continue;
+    const active = await db
+      .select({ id: transcriptionJobs.id })
+      .from(transcriptionJobs)
+      .where(
+        and(
+          eq(transcriptionJobs.mediaAssetId, track.assetId),
+          inArray(transcriptionJobs.status, ["queued", "running"]),
+        ),
+      )
+      .limit(1);
+    if (active.length > 0) continue;
+    await db.insert(transcriptionJobs).values({ mediaAssetId: track.assetId, status: "queued" });
+  }
+
   return { ok: true, recordingId: recording.id, timelineId: timelineRow.id };
 }
 
@@ -338,34 +360,42 @@ export async function queueTimelineTranscription(formData: FormData): Promise<vo
       ),
     )
     .orderBy(mediaAssets.createdAt);
-  const primary = audioAssets.find((asset) => asset.recordingTrack === "microphone") ?? audioAssets[0];
-  if (!primary) redirectError(target, "No microphone or system-audio track is available.");
-
-  const existingTranscript = await db
-    .select({ id: transcripts.id })
-    .from(transcripts)
-    .where(eq(transcripts.mediaAssetId, primary.id))
-    .limit(1);
-  if (existingTranscript.length > 0) {
-    redirectSuccess(target, "This recording already has a transcript.");
+  if (audioAssets.length === 0) {
+    redirectError(target, "No microphone or system-audio track is available.");
   }
 
-  const active = await db
-    .select({ id: transcriptionJobs.id })
-    .from(transcriptionJobs)
-    .where(
-      and(
-        eq(transcriptionJobs.mediaAssetId, primary.id),
-        inArray(transcriptionJobs.status, ["queued", "running"]),
-      ),
-    )
-    .limit(1);
-  if (active.length > 0) {
-    redirectError(target, "Transcription is already queued or running.");
+  let queued = 0;
+  for (const asset of audioAssets) {
+    const existingTranscript = await db
+      .select({ id: transcripts.id })
+      .from(transcripts)
+      .where(eq(transcripts.mediaAssetId, asset.id))
+      .limit(1);
+    if (existingTranscript.length > 0) continue;
+
+    const active = await db
+      .select({ id: transcriptionJobs.id })
+      .from(transcriptionJobs)
+      .where(
+        and(
+          eq(transcriptionJobs.mediaAssetId, asset.id),
+          inArray(transcriptionJobs.status, ["queued", "running"]),
+        ),
+      )
+      .limit(1);
+    if (active.length > 0) continue;
+
+    await db.insert(transcriptionJobs).values({ mediaAssetId: asset.id, status: "queued" });
+    queued += 1;
   }
 
-  await db.insert(transcriptionJobs).values({ mediaAssetId: primary.id, status: "queued" });
-  redirectSuccess(target, "Transcription queued. Start the worker with: pnpm worker");
+  if (queued === 0) {
+    redirectSuccess(target, "Transcription is already queued or complete for the recording audio.");
+  }
+  redirectSuccess(
+    target,
+    `${queued} transcription job(s) queued. Start the worker with: pnpm worker`,
+  );
 }
 
 export async function generateTimelineCaptions(formData: FormData): Promise<void> {
@@ -377,7 +407,7 @@ export async function generateTimelineCaptions(formData: FormData): Promise<void
   if (!timeline.recordingId) redirectError(target, "This timeline has no recording transcript.");
 
   const audioAssets = await db
-    .select({ id: mediaAssets.id })
+    .select({ id: mediaAssets.id, track: mediaAssets.recordingTrack })
     .from(mediaAssets)
     .where(
       and(
@@ -385,16 +415,19 @@ export async function generateTimelineCaptions(formData: FormData): Promise<void
         eq(mediaAssets.recordingId, timeline.recordingId),
         inArray(mediaAssets.recordingTrack, ["microphone", "system"]),
       ),
-    );
+    )
+    .orderBy(mediaAssets.createdAt);
   if (audioAssets.length === 0) redirectError(target, "No recording audio is available.");
 
   const transcriptRows = await db
     .select()
     .from(transcripts)
     .where(inArray(transcripts.mediaAssetId, audioAssets.map((asset) => asset.id)))
-    .orderBy(desc(transcripts.createdAt))
-    .limit(1);
-  const transcript = transcriptRows[0];
+    .orderBy(desc(transcripts.createdAt));
+  const primary =
+    audioAssets.find((asset) => asset.track === "microphone") ?? audioAssets[0];
+  const transcript =
+    transcriptRows.find((item) => item.mediaAssetId === primary.id) ?? transcriptRows[0];
   if (!transcript || transcript.segments.length === 0) {
     redirectError(target, "Transcribe the recording first, then generate captions.");
   }

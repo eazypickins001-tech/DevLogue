@@ -12,7 +12,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Screen/camera recording: raw screen, camera, microphone and system-audio tracks; camera PiP can be off, recorded-only or visible; 16:9/9:16; saves to a session and creates an editable timeline.
 - Timeline v1: multi-track preview, trim/timing inspector, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
 - Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
-- Transcript-driven captions: queue microphone/system-audio transcription, the worker stores timestamped Whisper segments, and the editor turns them into timed text clips.
+- Transcript-driven captions: saving a recording queues microphone and system-audio transcription, the worker stores timestamped Whisper segments, and the editor turns the preferred transcript into timed text clips.
 - Timeline-to-publishing handoff: a rendered timeline can create a short-video content draft; publishing that draft uploads only the rendered MP4, not the raw screen/camera tracks.
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
 - On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
@@ -229,7 +229,7 @@ How it works:
 4. Clips are concatenated, validated with `ffprobe` (size, duration, audio stream), uploaded to R2 and recorded as a `video` media asset.
 5. The draft page and Video page show job status, errors and the rendered file link.
 6. Timeline jobs use the same worker: it downloads the recording tracks, composites the main video and camera overlay, burns captions, mixes microphone/system audio, validates with ffprobe, uploads the MP4 to R2 and stores it as a media asset. The timeline page shows the queue and rendered file.
-7. Transcription jobs transcribe the primary microphone/system track with Whisper. The timeline page then generates timed captions from the stored segments.
+7. Saving a recording queues transcription for its microphone and system-audio tracks. The worker transcribes both; the timeline prefers the microphone transcript and falls back to system audio. The editor then generates timed captions from the stored segments.
 
 Whisper (`faster-whisper`, `base.en` by default) transcribes uploaded video/audio once per asset and stores timestamped segments. It skips worker-generated renders, and silence is not stored as a transcript. `av==18.1.0` is pinned in `scripts/requirements-worker.txt` because faster-whisper 1.2.1 is incompatible with PyAV 19.
 

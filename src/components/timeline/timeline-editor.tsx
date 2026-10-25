@@ -686,7 +686,7 @@ export function TimelineEditor({
               </>
             ) : (
               <>
-                <p className="mt-2">Transcribe the microphone track, then generate captions.</p>
+                <p className="mt-2">Transcribe the recording audio, then generate captions.</p>
                 <form action={queueTimelineTranscription} className="mt-3">
                   <input type="hidden" name="timelineId" value={timelineId} />
                   <button type="submit" className={`${buttonSecondary} w-full`}>

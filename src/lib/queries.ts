@@ -209,18 +209,19 @@ export async function getTimelineTranscription(recordingId: string) {
       .select()
       .from(transcripts)
       .where(inArray(transcripts.mediaAssetId, assetIds))
-      .orderBy(desc(transcripts.createdAt))
-      .limit(1),
+      .orderBy(desc(transcripts.createdAt)),
     db
       .select()
       .from(transcriptionJobs)
       .where(inArray(transcriptionJobs.mediaAssetId, assetIds))
-      .orderBy(desc(transcriptionJobs.createdAt))
-      .limit(1),
+      .orderBy(desc(transcriptionJobs.createdAt)),
   ]);
+  const transcript =
+    transcriptRows.find((item) => item.mediaAssetId === primary.id) ?? transcriptRows[0] ?? null;
+  const primaryJob = jobRows.find((item) => item.mediaAssetId === primary.id);
   return {
-    transcript: transcriptRows[0] ?? null,
-    job: jobRows[0] ?? null,
+    transcript,
+    job: primaryJob ?? jobRows[0] ?? null,
     assetId: primary.id,
     hasAudio: true,
   };
