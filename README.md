@@ -9,6 +9,8 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Multi-project workspace with stage, audience, positioning, exclusions and platform preferences.
 - Build-session capture: manual notes plus structured evidence (commits, PRs, releases, issues, notes).
 - Private media uploads to Cloudflare R2 with presigned PUT, size/type validation, magic-byte checks and signed reads.
+- Screen/camera recording: raw screen, camera, microphone and system-audio tracks; camera PiP can be off, recorded-only or visible; 16:9/9:16; saves to a session and creates an editable timeline.
+- Timeline v1: multi-track preview, trim/timing inspector, captions, camera overlay visibility, 16:9/9:16 switch and versioned saves.
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
 - On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
 - Storyboards with durations normalized to the target runtime and scenes mapped to uploaded media.
@@ -269,6 +271,9 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 ## Known limitations
 
 - **Video rendering is local-only.** The worker needs FFmpeg and faster-whisper installed on the machine running it. Production can queue jobs but cannot render them. Rendered audio is silent; narration is burned as on-screen text. There is no TTS or voice-over mixing yet.
+- **Timeline rendering is not wired yet.** Timeline v1 saves the document and previews it in the browser; queueing a final MP4 from a timeline is the next implementation step.
+- **Recordings use single-PUT uploads.** Each raw track must stay under the current 512MB video limit. The recorder keeps 15-minute tracks under that with 4Mbps screen and 3Mbps camera bitrates; multipart/resumable upload is still pending.
+- **Screen and camera start offsets are assumed aligned.** Tracks are recorded as separate streams and start together; manual offset correction is not in the inspector yet.
 - **Platform-specific fields** for TikTok, YouTube and Threads (privacy, title, etc.) are not sent yet; verify drafts in Social Planner before scheduling.
 - **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
 - **No audience analytics import.** Views/likes/waitlist numbers are manual by design.

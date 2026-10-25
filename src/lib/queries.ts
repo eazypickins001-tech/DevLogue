@@ -12,11 +12,13 @@ import {
   mediaAssets,
   projects,
   publishingAccounts,
+  recordings,
   renderJobs,
   scheduledPosts,
   sessionEvidence,
   storyboardScenes,
   storyboards,
+  timelineProjects,
   transcripts,
   usageRecords,
 } from "@/db/schema";
@@ -103,6 +105,54 @@ export async function getSessionDetail(userId: string, sessionId: string) {
   ]);
 
   return { ...row, evidence, media, analyses, drafts };
+}
+
+export async function getTimelineDetail(userId: string, timelineId: string) {
+  const db = getDb();
+  const rows = await db
+    .select({
+      timeline: timelineProjects,
+      project: projects,
+      session: buildSessions,
+      recording: recordings,
+    })
+    .from(timelineProjects)
+    .innerJoin(projects, eq(timelineProjects.projectId, projects.id))
+    .leftJoin(buildSessions, eq(timelineProjects.sessionId, buildSessions.id))
+    .leftJoin(recordings, eq(timelineProjects.recordingId, recordings.id))
+    .where(and(eq(timelineProjects.id, timelineId), eq(timelineProjects.userId, userId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+
+  const assets = row.recording
+    ? await db
+        .select()
+        .from(mediaAssets)
+        .where(eq(mediaAssets.recordingId, row.recording.id))
+        .orderBy(mediaAssets.createdAt)
+    : [];
+
+  return { ...row, assets };
+}
+
+export type TimelineDetail = Awaited<ReturnType<typeof getTimelineDetail>>;
+
+export async function listTimelines(userId: string) {
+  const db = getDb();
+  return db
+    .select({
+      timeline: timelineProjects,
+      projectName: projects.name,
+      sessionTitle: buildSessions.title,
+      clipCount: sql<number>`(select coalesce(sum(jsonb_array_length(track->'clips')), 0)::int from jsonb_array_elements(${timelineProjects.document}->'tracks') as track)`,
+    })
+    .from(timelineProjects)
+    .innerJoin(projects, eq(timelineProjects.projectId, projects.id))
+    .leftJoin(buildSessions, eq(timelineProjects.sessionId, buildSessions.id))
+    .where(eq(timelineProjects.userId, userId))
+    .orderBy(desc(timelineProjects.updatedAt))
+    .limit(50);
 }
 
 export async function latestAnalysis(sessionId: string) {

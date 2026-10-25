@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { TimelineDocument } from "../lib/timeline/model";
 
 export const projectStage = pgEnum("project_stage", [
   "idea",
@@ -284,6 +285,30 @@ export const sessionEvidence = pgTable(
   (table) => [index("session_evidence_session_idx").on(table.sessionId)],
 );
 
+export const recordings = pgTable(
+  "recordings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => buildSessions.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    source: text("source").notNull(),
+    aspectRatio: text("aspect_ratio").notNull(),
+    cameraVisible: boolean("camera_visible").notNull().default(true),
+    durationSeconds: numeric("duration_seconds", { precision: 10, scale: 2 }).notNull().default("0"),
+    status: text("status").notNull().default("ready"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("recordings_user_idx").on(table.userId),
+    index("recordings_session_idx").on(table.sessionId),
+  ],
+);
+
 export const mediaAssets = pgTable(
   "media_assets",
   {
@@ -293,6 +318,8 @@ export const mediaAssets = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
     sessionId: uuid("session_id").references(() => buildSessions.id, { onDelete: "cascade" }),
+    recordingId: uuid("recording_id").references(() => recordings.id, { onDelete: "set null" }),
+    recordingTrack: text("recording_track"),
     kind: mediaKind("kind").notNull(),
     filename: text("filename").notNull(),
     storageKey: text("storage_key").notNull(),
@@ -309,6 +336,7 @@ export const mediaAssets = pgTable(
     uniqueIndex("media_assets_storage_key_unique").on(table.storageKey),
     index("media_assets_project_idx").on(table.projectId),
     index("media_assets_session_idx").on(table.sessionId),
+    index("media_assets_recording_idx").on(table.recordingId),
   ],
 );
 
@@ -326,6 +354,54 @@ export const transcripts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("transcripts_media_idx").on(table.mediaAssetId)],
+);
+
+export const timelineProjects = pgTable(
+  "timeline_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => buildSessions.id, { onDelete: "cascade" }),
+    recordingId: uuid("recording_id").references(() => recordings.id, { onDelete: "set null" }),
+    draftId: uuid("draft_id").references(() => contentDrafts.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    aspectRatio: text("aspect_ratio").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    fps: integer("fps").notNull().default(30),
+    durationSeconds: numeric("duration_seconds", { precision: 10, scale: 2 }).notNull().default("0"),
+    document: jsonb("document").$type<TimelineDocument>().notNull(),
+    version: integer("version").notNull().default(1),
+    status: text("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("timeline_projects_user_idx").on(table.userId),
+    index("timeline_projects_session_idx").on(table.sessionId),
+    index("timeline_projects_recording_idx").on(table.recordingId),
+  ],
+);
+
+export const timelineRenderJobs = pgTable(
+  "timeline_render_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    timelineId: uuid("timeline_id")
+      .notNull()
+      .references(() => timelineProjects.id, { onDelete: "cascade" }),
+    status: renderStatus("status").notNull().default("queued"),
+    progress: integer("progress").notNull().default(0),
+    outputKey: text("output_key"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("timeline_render_jobs_timeline_idx").on(table.timelineId, table.createdAt)],
 );
 
 export const aiAnalyses = pgTable(

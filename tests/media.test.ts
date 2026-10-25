@@ -34,6 +34,13 @@ describe("matchesSignature", () => {
     header.set(asciiBytes("ftyp"), 4);
     header.set(asciiBytes("isom"), 8);
     expect(matchesSignature(header, "video")).toBe(true);
+    header.set(asciiBytes("iso5"), 8);
+    expect(matchesSignature(header, "video")).toBe(true);
+  });
+
+  it("recognizes WebM audio and video", () => {
+    expect(matchesSignature(bytes([0x1a, 0x45, 0xdf, 0xa3]), "audio")).toBe(true);
+    expect(matchesSignature(bytes([0x1a, 0x45, 0xdf, 0xa3]), "video")).toBe(true);
   });
 
   it("rejects a PDF declared as an image", () => {

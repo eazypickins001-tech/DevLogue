@@ -53,6 +53,10 @@ export async function requestUpload(input: {
   return { ok: true, uploadUrl, key, filename: validation.filename };
 }
 
+export type CompleteUploadResult =
+  | { ok: true; assetId: string }
+  | { ok: false; error: string };
+
 export async function completeUpload(input: {
   sessionId: string;
   key: string;
@@ -63,7 +67,7 @@ export async function completeUpload(input: {
   width?: number;
   height?: number;
   durationSeconds?: number;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<CompleteUploadResult> {
   await requireSession();
   if (!isDatabaseConfigured()) return { ok: false, error: "Database is not configured." };
   if (!isStorageConfigured()) return { ok: false, error: STORAGE_ERROR };
@@ -94,24 +98,27 @@ export async function completeUpload(input: {
   }
 
   const db = getDb();
-  await db.insert(mediaAssets).values({
-    userId: owner.id,
-    sessionId: input.sessionId,
-    kind: validation.kind,
-    filename: validation.filename,
-    storageKey: input.key,
-    contentType: input.contentType.split(";")[0].trim().toLowerCase(),
-    sizeBytes: remote.size,
-    isPrivate: true,
-    notes: input.notes?.trim() || null,
-    width: input.width && input.width > 0 ? Math.round(input.width) : null,
-    height: input.height && input.height > 0 ? Math.round(input.height) : null,
-    durationSeconds:
-      input.durationSeconds && input.durationSeconds > 0
-        ? input.durationSeconds.toFixed(2)
-        : null,
-  });
-  return { ok: true };
+  const inserted = await db
+    .insert(mediaAssets)
+    .values({
+      userId: owner.id,
+      sessionId: input.sessionId,
+      kind: validation.kind,
+      filename: validation.filename,
+      storageKey: input.key,
+      contentType: input.contentType.split(";")[0].trim().toLowerCase(),
+      sizeBytes: remote.size,
+      isPrivate: true,
+      notes: input.notes?.trim() || null,
+      width: input.width && input.width > 0 ? Math.round(input.width) : null,
+      height: input.height && input.height > 0 ? Math.round(input.height) : null,
+      durationSeconds:
+        input.durationSeconds && input.durationSeconds > 0
+          ? input.durationSeconds.toFixed(2)
+          : null,
+    })
+    .returning({ id: mediaAssets.id });
+  return { ok: true, assetId: inserted[0].id };
 }
 
 export async function deleteMedia(formData: FormData): Promise<void> {

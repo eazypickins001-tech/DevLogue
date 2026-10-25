@@ -63,7 +63,9 @@ export function matchesSignature(bytes: Uint8Array, kind: MediaKindValue): boole
     case "video":
       return (
         (brand === "ftyp" &&
-          ["isom", "iso2", "mp41", "mp42", "avc1", "M4V ", "qt  "].includes(container)) ||
+          ["isom", "iso2", "iso5", "iso6", "mp41", "mp42", "dash", "MSNV", "avc1", "M4V ", "qt  "].includes(
+            container,
+          )) ||
         startsWithBytes(bytes, [0x1a, 0x45, 0xdf, 0xa3])
       );
     case "audio":
@@ -73,7 +75,8 @@ export function matchesSignature(bytes: Uint8Array, kind: MediaKindValue): boole
         startsWithBytes(bytes, [0xff, 0xf3]) ||
         (riff === "RIFF" && container === "WAVE") ||
         ascii(bytes, 0, 4) === "OggS" ||
-        brand === "ftyp"
+        brand === "ftyp" ||
+        startsWithBytes(bytes, [0x1a, 0x45, 0xdf, 0xa3])
       );
     case "document":
       return true;
