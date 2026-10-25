@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { saveTimeline } from "@/app/actions/recordings";
+import { queueTimelineRender, saveTimeline } from "@/app/actions/recordings";
 import {
   buttonDanger,
   buttonPrimary,
@@ -437,6 +437,16 @@ export function TimelineEditor({ timelineId, title, version, initialDocument, as
                 >
                   {saveState === "saving" ? "Saving..." : "Save timeline"}
                 </button>
+                <form action={queueTimelineRender}>
+                  <input type="hidden" name="timelineId" value={timelineId} />
+                  <button
+                    type="submit"
+                    className={buttonSecondary}
+                    disabled={dirty || saveState === "saving"}
+                  >
+                    Queue final render
+                  </button>
+                </form>
               </div>
             </div>
             {saveError ? <p className="mt-2 text-sm text-rose-700">{saveError}</p> : null}

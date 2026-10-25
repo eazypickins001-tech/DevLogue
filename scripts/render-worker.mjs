@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
 import { AwsClient } from "aws4fetch";
@@ -13,6 +13,7 @@ import {
   sceneFilterArgs,
   sceneInputArgs,
 } from "./render-plan.mjs";
+import { buildTimelineArgs, prepareTimelineTextFiles } from "./timeline-plan.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const once = process.argv.includes("--once");
@@ -112,7 +113,7 @@ function ffprobeArgs(ffprobe, filePath) {
   ];
 }
 
-async function validateVideo(ffprobe, filePath, targetDurationSec) {
+async function validateVideo(ffprobe, filePath, targetDurationSec, expected = { width: 1080, height: 1920 }) {
   const { stdout } = await run(ffprobe, ffprobeArgs(ffprobe, filePath));
   const probe = JSON.parse(stdout);
   const video = probe.streams?.find((stream) => stream.codec_type === "video");
@@ -120,8 +121,10 @@ async function validateVideo(ffprobe, filePath, targetDurationSec) {
   const duration = Number(probe.format?.duration ?? 0);
   if (!video) throw new Error("Rendered file has no video stream.");
   if (!audio) throw new Error("Rendered file has no audio stream.");
-  if (video.width !== 1080 || video.height !== 1920) {
-    throw new Error(`Rendered size is ${video.width}x${video.height}, expected 1080x1920.`);
+  if (video.width !== expected.width || video.height !== expected.height) {
+    throw new Error(
+      `Rendered size is ${video.width}x${video.height}, expected ${expected.width}x${expected.height}.`,
+    );
   }
   if (duration < targetDurationSec - 2 || duration > targetDurationSec + 3) {
     throw new Error(
@@ -315,6 +318,111 @@ async function processJob(job) {
   rmSync(workDir, { recursive: true, force: true });
 }
 
+async function processTimelineJob(job) {
+  const sql = neon(required("DATABASE_URL"));
+  const { client, base } = r2Config();
+  const { ffmpeg, ffprobe } = resolveFfmpeg();
+  const fontFile = process.env.RENDER_FONT || defaultFont();
+  const workDir = join(root, ".worker-tmp", job.id);
+  mkdirSync(workDir, { recursive: true });
+
+  const rows = await sql`
+    select t.*, p.user_id, b.title as session_title
+    from timeline_projects t
+    join projects p on p.id = t.project_id
+    left join build_sessions b on b.id = t.session_id
+    where t.id = ${job.timeline_id}
+    limit 1
+  `;
+  const timeline = rows[0];
+  if (!timeline) throw new Error("Timeline not found.");
+  const document =
+    typeof timeline.document === "string" ? JSON.parse(timeline.document) : timeline.document;
+  if (!document || !Array.isArray(document.tracks)) throw new Error("Timeline document is invalid.");
+
+  await sql`
+    update timeline_projects set status = 'rendering', updated_at = now()
+    where id = ${timeline.id}
+  `;
+  await sql`update timeline_render_jobs set progress = 10, updated_at = now() where id = ${job.id}`;
+
+  const assets = timeline.recording_id
+    ? await sql`
+        select * from media_assets
+        where recording_id = ${timeline.recording_id}
+          and coalesce(recording_track, '') <> 'render'
+      `
+    : [];
+  const assetPaths = new Map();
+  for (const asset of assets) {
+    const extension = extname(asset.filename) || (asset.kind === "audio" ? ".audio" : ".mp4");
+    const path = join(workDir, `asset-${asset.id}${extension}`);
+    await downloadAsset(client, base, asset.storage_key, path);
+    assetPaths.set(asset.id, path);
+  }
+  await sql`update timeline_render_jobs set progress = 30, updated_at = now() where id = ${job.id}`;
+
+  const referenced = new Set(
+    document.tracks.flatMap((track) =>
+      (track.clips ?? []).map((clip) => clip.assetId).filter(Boolean),
+    ),
+  );
+  for (const assetId of referenced) {
+    if (!assetPaths.has(assetId)) throw new Error(`Timeline asset ${assetId} is missing.`);
+  }
+
+  const textFiles = prepareTimelineTextFiles(document, workDir);
+  const output = join(workDir, "timeline.mp4");
+  const plan = buildTimelineArgs({
+    document,
+    assetPaths,
+    textFiles,
+    fontFile,
+    outputPath: output,
+  });
+  const usedAudio = (document.tracks ?? [])
+    .filter((track) => track.kind === "audio" && !track.hidden)
+    .flatMap((track) => track.clips ?? []).length;
+  console.log(
+    `timeline: rendering ${timeline.id} (${plan.width}x${plan.height}, ${plan.duration.toFixed(1)}s, ${usedAudio} audio clip(s))`,
+  );
+  await run(ffmpeg, plan.args, { cwd: workDir });
+
+  const probe = await validateVideo(ffprobe, output, plan.duration, {
+    width: plan.width,
+    height: plan.height,
+  });
+  const outputKey = `renders/${timeline.project_id}/timelines/${timeline.id}/${job.id}.mp4`;
+  await uploadAsset(client, base, outputKey, output, "video/mp4");
+
+  const size = statSync(output).size;
+  const media = await sql`
+    insert into media_assets (
+      user_id, project_id, session_id, recording_id, recording_track, kind, filename,
+      storage_key, content_type, size_bytes, is_private, notes, duration_seconds, width, height
+    )
+    values (
+      ${timeline.user_id}, ${timeline.project_id}, ${timeline.session_id}, ${timeline.recording_id},
+      'render', 'video', ${`timeline-${timeline.id.slice(0, 8)}.mp4`}, ${outputKey},
+      'video/mp4', ${size}, true, 'Rendered from timeline', ${String(probe.duration)},
+      ${probe.width}, ${probe.height}
+    )
+    returning id
+  `;
+
+  await sql`
+    update timeline_projects set status = 'rendered', updated_at = now()
+    where id = ${timeline.id}
+  `;
+  await sql`
+    update timeline_render_jobs
+    set status = 'succeeded', progress = 100, output_key = ${outputKey}, error = null, updated_at = now()
+    where id = ${job.id}
+  `;
+  console.log(`timeline: succeeded ${outputKey} (${probe.duration.toFixed(1)}s, media ${media[0].id})`);
+  rmSync(workDir, { recursive: true, force: true });
+}
+
 async function claimJob(sql) {
   const rows = await sql`
     update render_jobs
@@ -338,6 +446,40 @@ async function failJob(sql, job, error) {
   if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
 }
 
+async function claimTimelineJob(sql) {
+  const rows = await sql`
+    update timeline_render_jobs
+    set status = 'running', attempts = attempts + 1, updated_at = now()
+    where id = (
+      select id from timeline_render_jobs
+      where status = 'queued'
+      order by created_at
+      limit 1
+      for update skip locked
+    )
+    returning *
+  `;
+  return rows[0] ?? null;
+}
+
+async function failTimelineJob(sql, job, error) {
+  const message = error instanceof Error ? error.message : String(error);
+  await sql`
+    update timeline_render_jobs
+    set status = 'failed', error = ${message.slice(0, 2000)}, updated_at = now()
+    where id = ${job.id}
+  `;
+  if (job.timeline_id) {
+    await sql`
+      update timeline_projects set status = 'failed', updated_at = now()
+      where id = ${job.timeline_id}
+    `;
+  }
+  console.log(`timeline: failed ${job.id}: ${message}`);
+  const workDir = join(root, ".worker-tmp", job.id);
+  if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
+}
+
 async function main() {
   loadEnv();
   const sql = neon(required("DATABASE_URL"));
@@ -347,6 +489,16 @@ async function main() {
   console.log(`worker: polling ${once ? "once" : "every 10s"}`);
 
   do {
+    const timelineJob = await claimTimelineJob(sql);
+    if (timelineJob) {
+      try {
+        await processTimelineJob(timelineJob);
+      } catch (error) {
+        await failTimelineJob(sql, timelineJob, error);
+      }
+      continue;
+    }
+
     const job = await claimJob(sql);
     if (job) {
       try {

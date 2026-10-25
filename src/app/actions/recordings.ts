@@ -2,8 +2,17 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { buildSessions, mediaAssets, recordings, timelineProjects } from "@/db/schema";
+import {
+  buildSessions,
+  mediaAssets,
+  recordings,
+  timelineProjects,
+  timelineRenderJobs,
+} from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
+import { redirectError, redirectSuccess } from "@/lib/forms";
+import { isStorageConfigured } from "@/lib/storage";
+import { formString } from "@/lib/validation";
 import {
   CAMERA_POSITIONS,
   CAMERA_SIZES,
@@ -257,4 +266,39 @@ export async function saveTimeline(input: {
     .where(eq(timelineProjects.id, current.id));
 
   return { ok: true, version };
+}
+
+export async function queueTimelineRender(formData: FormData): Promise<void> {
+  await requireSession();
+  const timelineId = formString(formData, "timelineId");
+  const target = `/timelines/${timelineId}`;
+  if (!isStorageConfigured()) {
+    redirectError(target, "R2 is not configured, so the rendered file cannot be stored.");
+  }
+
+  const owner = await getOwner();
+  const db = getDb();
+  const rows = await db
+    .select({ id: timelineProjects.id })
+    .from(timelineProjects)
+    .where(and(eq(timelineProjects.id, timelineId), eq(timelineProjects.userId, owner.id)))
+    .limit(1);
+  if (rows.length === 0) redirectError("/timelines", "Timeline not found.");
+
+  const active = await db
+    .select({ id: timelineRenderJobs.id })
+    .from(timelineRenderJobs)
+    .where(
+      and(
+        eq(timelineRenderJobs.timelineId, timelineId),
+        inArray(timelineRenderJobs.status, ["queued", "running"]),
+      ),
+    )
+    .limit(1);
+  if (active.length > 0) {
+    redirectError(target, "A render is already queued or running for this timeline.");
+  }
+
+  await db.insert(timelineRenderJobs).values({ timelineId, status: "queued" });
+  redirectSuccess(target, "Timeline render queued. Start the worker with: pnpm worker");
 }

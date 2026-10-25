@@ -19,6 +19,7 @@ import {
   storyboardScenes,
   storyboards,
   timelineProjects,
+  timelineRenderJobs,
   transcripts,
   usageRecords,
 } from "@/db/schema";
@@ -153,6 +154,17 @@ export async function listTimelines(userId: string) {
     .where(eq(timelineProjects.userId, userId))
     .orderBy(desc(timelineProjects.updatedAt))
     .limit(50);
+}
+
+export async function listTimelineRenderJobs(timelineId: string) {
+  const db = getDb();
+  return db
+    .select({ job: timelineRenderJobs, mediaId: mediaAssets.id })
+    .from(timelineRenderJobs)
+    .leftJoin(mediaAssets, eq(mediaAssets.storageKey, timelineRenderJobs.outputKey))
+    .where(eq(timelineRenderJobs.timelineId, timelineId))
+    .orderBy(desc(timelineRenderJobs.createdAt))
+    .limit(20);
 }
 
 export async function latestAnalysis(sessionId: string) {
