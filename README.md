@@ -247,7 +247,7 @@ pnpm smoke
 ## Deployment (Vercel)
 
 1. Push the repository to GitHub.
-2. Import it in Vercel (Next.js preset, personal scope project `devlogue`).
+2. Import it in Vercel (Next.js preset, team project `devlogue-prod`, production branch `main`).
 3. Add every variable from `.env.local`, plus `APP_PUBLIC_URL=https://<production-url>`.
 4. Run migrations against production once:
    ```powershell
@@ -276,7 +276,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.
 - Email OTP delivery requires a Resend API key. Without it, the password form is used.
 - R2 jurisdictional buckets need an endpoint override that is not implemented yet.
-- **Vercel Next.js 16 / Hobby deployment bug:** after the first successful build, later deployments can stick at `UNKNOWN` with 0ms build time and no logs. Workaround that works: `vercel redeploy` the last good deployment, or create a fresh project. This is a platform issue, not a build failure.
+- **Vercel commit-author gate:** a Git deployment is blocked before build (`TEAM_ACCESS_REQUIRED`) when the commit author is not a member of the Vercel team. Commit with an email tied to an authorized GitHub account (this repo uses `eazypickins001@gmail.com`), or invite the author in Vercel → Team → Members. This is not a build failure and not the old `UNKNOWN` symptom.
 
 ## First-use workflow
 
