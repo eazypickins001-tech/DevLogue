@@ -22,7 +22,14 @@ import {
   mutedLinkClass,
 } from "@/components/ui";
 import { getOwner, requireSession } from "@/lib/auth";
-import { getDraftDetail, getSessionDetail, listDraftPosts, listProjectAccounts } from "@/lib/queries";
+import {
+  getDraftDetail,
+  getSessionDetail,
+  listDraftPosts,
+  listProjectAccounts,
+  listRenderJobs,
+} from "@/lib/queries";
+import { queueRender } from "@/app/actions/video";
 import { DRAFT_STATUS_LABELS, formatDateTime } from "@/lib/labels";
 import { CONTENT_FORMATS, lintContent, type ContentFormatValue, type LintIssue } from "@/lib/domain/content";
 import { storyboardIssues } from "@/lib/domain/storyboard";
@@ -60,9 +67,10 @@ export default async function DraftPage({
 
   const { draft, project, session, analysis, versions, approvals, storyboard, scenes } = detail;
   const sessionDetail = session ? await getSessionDetail(owner.id, session.id) : null;
-  const [projectAccounts, draftPosts] = await Promise.all([
+  const [projectAccounts, draftPosts, renderJobRows] = await Promise.all([
     listProjectAccounts(owner.id, project.id),
     listDraftPosts(draft.id),
+    listRenderJobs(draft.id),
   ]);
   const corpus = sessionDetail ? buildEvidenceCorpus(sessionDetail) : "";
   const assetNames = new Map(
@@ -200,8 +208,48 @@ export default async function DraftPage({
                 title="Storyboard"
                 description="Use this table directly in your editor. Scene durations are normalized."
               />
-              <div className="p-5">
+              <div className="space-y-5 p-5" id="render">
                 <StoryboardView board={storyboard} scenes={scenes} assetNames={assetNames} />
+                <div className="border-t border-slate-100 pt-4">
+                  <form action={queueRender} className="flex flex-wrap items-center gap-3">
+                    <input type="hidden" name="draftId" value={draft.id} />
+                    <SubmitButton className={buttonSecondary} pendingLabel="Queueing…">
+                      Queue render
+                    </SubmitButton>
+                    <span className="text-xs text-slate-500">
+                      Runs locally with <code className="font-mono">pnpm worker</code> (FFmpeg +
+                      faster-whisper).
+                    </span>
+                  </form>
+                  {renderJobRows.length > 0 ? (
+                    <ul className="mt-3 space-y-2">
+                      {renderJobRows.map(({ job, mediaId }) => (
+                        <li key={job.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-medium text-slate-900">{job.status}</span>
+                            <span className="text-xs text-slate-500">
+                              {formatDateTime(job.createdAt)}
+                              {job.attempts > 1 ? ` · attempt ${job.attempts}` : ""}
+                            </span>
+                          </div>
+                          {job.error ? (
+                            <p className="mt-1 text-xs text-rose-700">{job.error}</p>
+                          ) : null}
+                          {mediaId ? (
+                            <a
+                              className="mt-1 inline-block text-xs font-medium text-indigo-700"
+                              href={`/api/media/${mediaId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open rendered video
+                            </a>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               </div>
             </Card>
           ) : null}

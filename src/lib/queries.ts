@@ -12,6 +12,7 @@ import {
   mediaAssets,
   projects,
   publishingAccounts,
+  renderJobs,
   scheduledPosts,
   sessionEvidence,
   storyboardScenes,
@@ -394,6 +395,36 @@ export async function listProjectPosts(userId: string, projectId: string) {
     .leftJoin(publishingAccounts, eq(scheduledPosts.accountId, publishingAccounts.id))
     .where(and(eq(scheduledPosts.projectId, projectId), eq(projects.userId, userId)))
     .orderBy(desc(scheduledPosts.createdAt))
+    .limit(50);
+}
+
+export async function listRenderJobs(draftId: string) {
+  const db = getDb();
+  return db
+    .select({ job: renderJobs, mediaId: mediaAssets.id })
+    .from(renderJobs)
+    .leftJoin(mediaAssets, eq(mediaAssets.storageKey, renderJobs.outputKey))
+    .where(eq(renderJobs.draftId, draftId))
+    .orderBy(desc(renderJobs.createdAt))
+    .limit(20);
+}
+
+export async function listRenderJobsForUser(userId: string) {
+  const db = getDb();
+  return db
+    .select({
+      job: renderJobs,
+      draftTitle: contentDrafts.title,
+      draftFormat: contentDrafts.format,
+      projectName: projects.name,
+      mediaId: mediaAssets.id,
+    })
+    .from(renderJobs)
+    .innerJoin(contentDrafts, eq(renderJobs.draftId, contentDrafts.id))
+    .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+    .leftJoin(mediaAssets, eq(mediaAssets.storageKey, renderJobs.outputKey))
+    .where(eq(projects.userId, userId))
+    .orderBy(desc(renderJobs.createdAt))
     .limit(50);
 }
 

@@ -2,8 +2,8 @@ import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, linkClass } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
-import { listScheduledPosts, listStoryboardDrafts } from "@/lib/queries";
-import { formatDate } from "@/lib/labels";
+import { listRenderJobsForUser, listStoryboardDrafts } from "@/lib/queries";
+import { formatDate, formatDateTime } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +21,9 @@ export default async function VideoPage() {
   }
 
   const owner = await getOwner();
-  const [boards, posts] = await Promise.all([
+  const [boards, jobs] = await Promise.all([
     listStoryboardDrafts(owner.id),
-    listScheduledPosts(owner.id),
+    listRenderJobsForUser(owner.id),
   ]);
 
   return (
@@ -33,13 +33,15 @@ export default async function VideoPage() {
         description="Storyboards are ready to edit. Automated rendering is a local-worker feature, not a Vercel request."
       />
 
-      <SetupNotice title="Render worker not installed in this build">
+      <SetupNotice title="Rendering runs on your machine">
         <p>
-          Storyboards, scene-to-asset mapping, captions and editing instructions work now. Automatic
-          assembly needs FFmpeg and Whisper installed locally; the worker is scaffolded in phase 3.
+          Queue a render from a storyboard, then run the worker. It trims and loops clips, scales to
+          1080×1920, burns captions, adds an audio track, validates with ffprobe and uploads to R2.
         </p>
-        <p className="font-mono text-xs">
-          ffmpeg: not detected · whisper: not detected · render jobs: {posts.length === 0 ? "none" : `${posts.length} scheduled`}
+        <p className="font-mono text-xs">pnpm worker · pnpm worker:once · ffmpeg 9.0.2 · faster-whisper base.en</p>
+        <p>
+          Whisper transcribes uploaded video/audio once per asset and stores the segments; missing
+          tools are skipped, not faked.
         </p>
       </SetupNotice>
 
@@ -88,11 +90,54 @@ export default async function VideoPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Render queue" description="Render jobs are created by the local worker." />
-        <div className="p-5 text-sm text-slate-600">
-          No render jobs. When the worker is installed, jobs are queued here and processed outside the
-          web request lifecycle so the dashboard stays responsive.
-        </div>
+        <CardHeader
+          title="Render queue"
+          description={`${jobs.length} job(s). The worker claims one job at a time with SKIP LOCKED.`}
+        />
+        {jobs.length === 0 ? (
+          <div className="p-5 text-sm text-slate-600">
+            No render jobs yet. Open a storyboard and choose <strong>Queue render</strong>.
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {jobs.map(({ job, draftTitle, projectName, mediaId }) => (
+              <li key={job.id} className="space-y-1 px-5 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link href={`/studio/${job.draftId}#render`} className="font-medium text-slate-900">
+                    {draftTitle || "Short video"}
+                  </Link>
+                  <Badge
+                    tone={
+                      job.status === "succeeded"
+                        ? "success"
+                        : job.status === "failed"
+                          ? "danger"
+                          : job.status === "running"
+                            ? "info"
+                            : "warning"
+                    }
+                  >
+                    {job.status}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {projectName} · queued {formatDateTime(job.createdAt)} · attempt {job.attempts}
+                </p>
+                {job.error ? <p className="text-xs text-rose-700">{job.error}</p> : null}
+                {mediaId ? (
+                  <a
+                    className="text-xs font-medium text-indigo-700"
+                    href={`/api/media/${mediaId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open rendered video
+                  </a>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <Card>

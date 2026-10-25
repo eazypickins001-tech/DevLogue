@@ -21,3 +21,6 @@ Thumbs.db
 *-failure.png
 .dev-server.pid
 .prod-prod-failure.png
+.venv/
+.worker-tmp/
+tools/

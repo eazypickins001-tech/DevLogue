@@ -58,7 +58,7 @@ Format schemas (`src/lib/ai/schemas.ts`) cover text, threads, outlines, changelo
 
 - Generation produces a storyboard with 2-12 scenes. `normalizeStoryboard()` allocates the target duration across scenes within 2-15s limits, so durations always sum to the achievable target.
 - Scenes store `sourceAssetId` only when the id belongs to a media asset in the same session.
-- Render jobs are modelled but not executed. The intended worker is a local Node process using FFmpeg (and optional Whisper) reading `render_jobs`, writing to R2, and updating status. This keeps heavy work off Vercel functions.
+- Render jobs are queued from the UI and executed by a local Node worker (`scripts/render-worker.mjs`), keeping heavy work off Vercel. The worker claims jobs with `FOR UPDATE SKIP LOCKED`, renders each scene with FFmpeg (`scripts/render-plan.mjs` builds the arguments), concatenates, validates with `ffprobe`, uploads to R2 and records a `video` media asset. A Python helper (`scripts/transcribe.py`) runs faster-whisper on uploaded video/audio and stores timestamped segments; generated renders are excluded from transcription.
 
 ## Publishing path
 
@@ -91,6 +91,6 @@ Errors block approval morally rather than technically; the UI surfaces them and 
 
 ## Testing strategy
 
-Vitest unit tests cover session signing/expiry/tampering, storyboard normalization and validation, content lint rules, duplicate scheduling, timezone conversion, MIME classification, filename safety, upload limits, magic bytes, secret redaction, handoff tokens, JSON repair, publishing status/type mapping, Zod validation schemas, AI schema mapping and body rendering. A Playwright smoke script (`scripts/smoke-e2e.mjs`) exercises the full local flow, including a real HighLevel draft that it deletes afterwards.
+Vitest unit tests cover session signing/expiry/tampering, storyboard normalization and validation, content lint rules, duplicate scheduling, timezone conversion, MIME classification, filename safety, upload limits, magic bytes, secret redaction, handoff tokens, JSON repair, publishing status/type mapping, Zod validation schemas, AI schema mapping, body rendering, and render-plan argument construction (scene timing, inputs, caption wrapping, Whisper JSON). A Playwright smoke script (`scripts/smoke-e2e.mjs`) exercises the full local flow, including a real HighLevel draft that it deletes afterwards. The render pipeline was verified end to end with a generated clip: queue from the studio, worker render (1080×1920, 15s, AAC), R2 upload, media row and job success.
 
 External services are never called in tests. Live integration verification uses the read-only checks on `/integrations`.

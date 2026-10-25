@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "smoke": "node scripts/smoke-e2e.mjs",
+    "worker": "node scripts/render-worker.mjs",
+    "worker:once": "node scripts/render-worker.mjs --once",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

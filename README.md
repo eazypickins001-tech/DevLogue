@@ -12,6 +12,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
 - On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
 - Storyboards with durations normalized to the target runtime and scenes mapped to uploaded media.
+- Local render worker: claims queued jobs, trims/loops source clips, scales to 1080×1920, burns captions, validates with ffprobe, uploads to R2. Whisper transcribes uploaded video/audio once per asset.
 - Versioned drafts: AI output, user edits and the approved version are separate records.
 - Deterministic quality checks: platform limits, generic phrases, hype punctuation, unsupported numbers.
 - GoHighLevel Social Planner handoff: discover accounts, select per project, upload media, create **drafts** or **scheduled** posts, log jobs, remove drafts.
@@ -42,6 +43,7 @@ Verified end-to-end with Playwright: login → project → GHL account selection
 - A Cloudflare account with an R2 bucket
 - An OpenRouter API key (or another OpenAI-compatible endpoint)
 - A HighLevel sub-account with connected social accounts and a Private Integration Token
+- Optional for video rendering: FFmpeg 8+ and Python 3.11+ (faster-whisper)
 
 ## Local setup
 
@@ -194,6 +196,39 @@ Media strategy:
 - **Production:** DevLogue serves a signed, expiring handoff URL at `/api/publishing-media/[token]`; HighLevel fetches it as `hosted` media. Set `APP_PUBLIC_URL` to the public HTTPS origin.
 - HighLevel's fetcher does not reliably read private R2 presigned URLs; the handoff route exists because of that verified failure.
 
+## Local video worker
+
+Rendering deliberately runs on your machine, not on Vercel. The web app only queues jobs.
+
+```powershell
+winget install Gyan.FFmpeg
+python -m venv .venv
+.\.venv\Scripts\pip install -r scripts\requirements-worker.txt
+pnpm worker        # continuous
+pnpm worker:once   # process one queued job
+```
+
+How it works:
+
+1. Open a draft with a storyboard and choose **Queue render**.
+2. The worker claims the oldest `queued` job with `FOR UPDATE SKIP LOCKED`.
+3. Each scene becomes a 1080×1920 clip: source video/image scaled and padded, or a dark colour card when unmapped. On-screen text and narration are burned with `drawtext`.
+4. Clips are concatenated, validated with `ffprobe` (size, duration, audio stream), uploaded to R2 and recorded as a `video` media asset.
+5. The draft page and Video page show job status, errors and the rendered file link.
+
+Whisper (`faster-whisper`, `base.en` by default) transcribes uploaded video/audio once per asset and stores timestamped segments. It skips worker-generated renders, and silence is not stored as a transcript. `av==18.1.0` is pinned in `scripts/requirements-worker.txt` because faster-whisper 1.2.1 is incompatible with PyAV 19.
+
+Optional environment overrides:
+
+```dotenv
+WHISPER_MODEL=base.en
+FFMPEG_PATH=
+FFPROBE_PATH=
+RENDER_FONT=
+```
+
+Rendered audio is currently a silent AAC track; narration text is burned on screen. Voice-over/TTS mixing is not implemented yet.
+
 ## Quality gates
 
 ```powershell
@@ -233,13 +268,13 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 
 ## Known limitations
 
-- **Video rendering is not automated.** Storyboards, scene mapping, captions and editing instructions work; assembly needs a local FFmpeg/Whisper worker (not installed).
+- **Video rendering is local-only.** The worker needs FFmpeg and faster-whisper installed on the machine running it. Production can queue jobs but cannot render them. Rendered audio is silent; narration is burned as on-screen text. There is no TTS or voice-over mixing yet.
 - **Platform-specific fields** for TikTok, YouTube and Threads (privacy, title, etc.) are not sent yet; verify drafts in Social Planner before scheduling.
-- **TikTok/YouTube platform-specific fields** (privacy, title, etc.) are not sent yet; drafts may need manual adjustment in HighLevel.
 - **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
 - **No audience analytics import.** Views/likes/waitlist numbers are manual by design.
 - **Single-user auth.**
-- Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.\n- Email OTP delivery requires a Resend API key. Without it, the password form is used.
+- Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.
+- Email OTP delivery requires a Resend API key. Without it, the password form is used.
 - R2 jurisdictional buckets need an endpoint override that is not implemented yet.
 - **Vercel Next.js 16 / Hobby deployment bug:** after the first successful build, later deployments can stick at `UNKNOWN` with 0ms build time and no logs. Workaround that works: `vercel redeploy` the last good deployment, or create a fresh project. This is a platform issue, not a build failure.
 
@@ -265,4 +300,4 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 | Cloudflare R2 | 10GB free; requests beyond the free tier are paid |
 | OpenRouter free models | $0, with daily/rate limits |
 | HighLevel | Requires your existing subscription |
-| FFmpeg / Whisper (future) | Free, local |
+| FFmpeg / faster-whisper | Free, local |
