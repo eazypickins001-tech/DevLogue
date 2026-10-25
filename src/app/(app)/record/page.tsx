@@ -46,6 +46,22 @@ export default async function RecordPage({
           </Link>
         }
       />
+      {sessions.length === 0 ? (
+        <SetupNotice title="Create a destination session first">
+          <p>
+            Every recording is saved into a build session. Create a project, then create a build
+            session; that session becomes the editing studio destination.
+          </p>
+          <p className="flex flex-wrap gap-3">
+            <Link className={linkClass} href="/projects/new">
+              Create a project
+            </Link>
+            <Link className={linkClass} href="/sessions/new">
+              Create a build session
+            </Link>
+          </p>
+        </SetupNotice>
+      ) : null}
       <RecorderClient sessions={sessions} initialSessionId={sessionId} />
     </div>
   );

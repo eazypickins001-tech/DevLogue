@@ -595,30 +595,36 @@ export function RecorderClient({
           <h2 className="text-sm font-semibold text-slate-900">Capture</h2>
           <div className="mt-3 space-y-4">
             <div>
-              <label className="block">
-                <span className={labelClass}>Editing studio destination</span>
-                <select
-                  className={`${inputClass} mt-1`}
-                  value={sessionId}
-                  disabled={
-                    controlsDisabled || saveStatus === "saving" || saveStatus === "saved"
-                  }
-                  onChange={(event) => setSessionId(event.target.value)}
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="record-session-destination" className={labelClass}>
+                  Editing studio destination
+                </label>
+                <Link
+                  className="text-xs font-medium text-indigo-700 hover:text-indigo-900"
+                  href="/sessions/new"
                 >
-                  {sessions.length === 0 ? <option value="">No sessions yet</option> : null}
-                  {sessions.map((session) => (
-                    <option key={session.id} value={session.id}>
-                      {session.projectName} - {session.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  New session
+                </Link>
+              </div>
+              <select
+                id="record-session-destination"
+                className={`${inputClass} mt-1`}
+                value={sessionId}
+                disabled={
+                  controlsDisabled || saveStatus === "saving" || saveStatus === "saved"
+                }
+                onChange={(event) => setSessionId(event.target.value)}
+              >
+                {sessions.length === 0 ? <option value="">No sessions yet</option> : null}
+                {sessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {session.projectName} - {session.title}
+                  </option>
+                ))}
+              </select>
               {sessions.length === 0 ? (
                 <p className={hintClass}>
-                  <Link className="font-medium text-indigo-700" href="/sessions/new">
-                    Create a build session
-                  </Link>{" "}
-                  before recording.
+                  Create a build session, then choose it here before recording.
                 </p>
               ) : (
                 <p className={hintClass}>
