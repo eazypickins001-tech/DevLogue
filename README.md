@@ -111,14 +111,21 @@ Resend's free tier allows 3,000 emails/month (100/day). Until a domain is verifi
 ```json
 [
   {
-    "AllowedOrigins": ["http://localhost:3000", "https://your-app.vercel.app"],
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://devlogue-prod.vercel.app",
+      "https://devlogue-prod-eazypickins.vercel.app",
+      "https://devlogue-prod-git-main-eazypickins.vercel.app"
+    ],
     "AllowedMethods": ["PUT", "GET", "HEAD"],
-    "AllowedHeaders": ["content-type", "range"],
-    "ExposeHeaders": ["ETag"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "Content-Length", "Content-Type"],
     "MaxAgeSeconds": 3600
   }
 ]
 ```
+
+R2 matches the browser's exact origin. If you open a deployment-specific `*.vercel.app` URL, add that origin too. The current bucket rules can be checked with `wrangler r2 bucket cors list devlogue-media`.
 
 4. Add to `.env.local`:
 
