@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { TimelineEditor } from "@/components/timeline/timeline-editor";
 import { Badge, Card, CardHeader, FormMessage, PageHeader } from "@/components/ui";
 import { getOwner, requireSession } from "@/lib/auth";
-import { getTimelineDetail, listTimelineRenderJobs } from "@/lib/queries";
+import {
+  getTimelineDetail,
+  getTimelineTranscription,
+  listTimelineRenderJobs,
+} from "@/lib/queries";
 import { formatDateTime } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +28,7 @@ export default async function TimelinePage({
   const renderJobs = await listTimelineRenderJobs(id);
 
   const { timeline, project, session, recording, assets } = detail;
+  const transcription = recording ? await getTimelineTranscription(recording.id) : null;
   const media = assets.map((asset) => ({
     id: asset.id,
     filename: asset.filename,
@@ -60,6 +65,13 @@ export default async function TimelinePage({
         version={timeline.version}
         initialDocument={timeline.document}
         assets={media}
+        transcription={{
+          hasAudio: transcription?.hasAudio ?? false,
+          hasTranscript: Boolean(transcription?.transcript?.segments.length),
+          segmentCount: transcription?.transcript?.segments.length ?? 0,
+          jobStatus: transcription?.job?.status ?? null,
+          jobError: transcription?.job?.error ?? null,
+        }}
       />
       <Card>
         <CardHeader

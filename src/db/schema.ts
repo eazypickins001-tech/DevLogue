@@ -356,6 +356,26 @@ export const transcripts = pgTable(
   (table) => [index("transcripts_media_idx").on(table.mediaAssetId)],
 );
 
+export const transcriptionJobs = pgTable(
+  "transcription_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mediaAssetId: uuid("media_asset_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "cascade" }),
+    status: renderStatus("status").notNull().default("queued"),
+    language: text("language").notNull().default("en"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("transcription_jobs_media_idx").on(table.mediaAssetId, table.createdAt),
+    index("transcription_jobs_status_idx").on(table.status, table.createdAt),
+  ],
+);
+
 export const timelineProjects = pgTable(
   "timeline_projects",
   {

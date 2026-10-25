@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   buildSessions,
@@ -8,6 +8,8 @@ import {
   recordings,
   timelineProjects,
   timelineRenderJobs,
+  transcriptionJobs,
+  transcripts,
 } from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
 import { redirectError, redirectSuccess } from "@/lib/forms";
@@ -301,4 +303,164 @@ export async function queueTimelineRender(formData: FormData): Promise<void> {
 
   await db.insert(timelineRenderJobs).values({ timelineId, status: "queued" });
   redirectSuccess(target, "Timeline render queued. Start the worker with: pnpm worker");
+}
+
+async function timelineForOwner(timelineId: string) {
+  const owner = await getOwner();
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(timelineProjects)
+    .where(and(eq(timelineProjects.id, timelineId), eq(timelineProjects.userId, owner.id)))
+    .limit(1);
+  return { db, owner, timeline: rows[0] ?? null };
+}
+
+export async function queueTimelineTranscription(formData: FormData): Promise<void> {
+  await requireSession();
+  const timelineId = formString(formData, "timelineId");
+  const target = `/timelines/${timelineId}`;
+  const { db, owner, timeline } = await timelineForOwner(timelineId);
+  if (!timeline) redirectError("/timelines", "Timeline not found.");
+  if (!timeline.recordingId) redirectError(target, "This timeline has no recording audio.");
+
+  const audioAssets = await db
+    .select()
+    .from(mediaAssets)
+    .where(
+      and(
+        eq(mediaAssets.userId, owner.id),
+        eq(mediaAssets.recordingId, timeline.recordingId),
+        inArray(mediaAssets.recordingTrack, ["microphone", "system"]),
+      ),
+    )
+    .orderBy(mediaAssets.createdAt);
+  const primary = audioAssets.find((asset) => asset.recordingTrack === "microphone") ?? audioAssets[0];
+  if (!primary) redirectError(target, "No microphone or system-audio track is available.");
+
+  const existingTranscript = await db
+    .select({ id: transcripts.id })
+    .from(transcripts)
+    .where(eq(transcripts.mediaAssetId, primary.id))
+    .limit(1);
+  if (existingTranscript.length > 0) {
+    redirectSuccess(target, "This recording already has a transcript.");
+  }
+
+  const active = await db
+    .select({ id: transcriptionJobs.id })
+    .from(transcriptionJobs)
+    .where(
+      and(
+        eq(transcriptionJobs.mediaAssetId, primary.id),
+        inArray(transcriptionJobs.status, ["queued", "running"]),
+      ),
+    )
+    .limit(1);
+  if (active.length > 0) {
+    redirectError(target, "Transcription is already queued or running.");
+  }
+
+  await db.insert(transcriptionJobs).values({ mediaAssetId: primary.id, status: "queued" });
+  redirectSuccess(target, "Transcription queued. Start the worker with: pnpm worker");
+}
+
+export async function generateTimelineCaptions(formData: FormData): Promise<void> {
+  await requireSession();
+  const timelineId = formString(formData, "timelineId");
+  const target = `/timelines/${timelineId}`;
+  const { db, owner, timeline } = await timelineForOwner(timelineId);
+  if (!timeline) redirectError("/timelines", "Timeline not found.");
+  if (!timeline.recordingId) redirectError(target, "This timeline has no recording transcript.");
+
+  const audioAssets = await db
+    .select({ id: mediaAssets.id })
+    .from(mediaAssets)
+    .where(
+      and(
+        eq(mediaAssets.userId, owner.id),
+        eq(mediaAssets.recordingId, timeline.recordingId),
+        inArray(mediaAssets.recordingTrack, ["microphone", "system"]),
+      ),
+    );
+  if (audioAssets.length === 0) redirectError(target, "No recording audio is available.");
+
+  const transcriptRows = await db
+    .select()
+    .from(transcripts)
+    .where(inArray(transcripts.mediaAssetId, audioAssets.map((asset) => asset.id)))
+    .orderBy(desc(transcripts.createdAt))
+    .limit(1);
+  const transcript = transcriptRows[0];
+  if (!transcript || transcript.segments.length === 0) {
+    redirectError(target, "Transcribe the recording first, then generate captions.");
+  }
+
+  const captions = transcript.segments
+    .filter((segment) => segment.text.trim().length > 0)
+    .slice(0, 150)
+    .map((segment) => ({
+      startSec: Math.max(0, Number(segment.startSec)),
+      durationSec: Math.max(0.5, Number(segment.endSec) - Number(segment.startSec)),
+      text: segment.text.trim(),
+    }));
+  if (captions.length === 0) redirectError(target, "The transcript has no speech segments.");
+
+  const document = structuredClone(timeline.document);
+  const tracks = document.tracks.map((track) =>
+    track.kind === "text"
+      ? { ...track, clips: track.clips.filter((clip) => clip.label !== "Auto caption") }
+      : track,
+  );
+  let textTrack = tracks.find((track) => track.kind === "text");
+  if (!textTrack) {
+    textTrack = {
+      id: `track-text-${crypto.randomUUID()}`,
+      kind: "text",
+      name: "Captions",
+      muted: false,
+      hidden: false,
+      clips: [],
+    };
+    tracks.push(textTrack);
+  }
+
+  const captionClips = captions.map((caption) => ({
+    id: `clip-${crypto.randomUUID()}`,
+    trackId: textTrack.id,
+    kind: "text" as const,
+    assetId: null,
+    label: "Auto caption",
+    startSec: caption.startSec,
+    durationSec: caption.durationSec,
+    sourceInSec: 0,
+    sourceOutSec: null,
+    volume: 1,
+    muted: false,
+    transform: null,
+    text: {
+      content: caption.text,
+      fontSize: 42,
+      color: "#ffffff",
+      background: "rgba(15,23,42,0.7)",
+      align: "center" as const,
+      position: "bottom" as const,
+    },
+    transitionIn: "none" as const,
+    transitionOut: "none" as const,
+  }));
+  textTrack.clips = [...textTrack.clips, ...captionClips];
+
+  const next = normalizeTimeline({ ...document, tracks });
+  await db
+    .update(timelineProjects)
+    .set({
+      document: next,
+      durationSeconds: next.durationSec.toFixed(2),
+      version: timeline.version + 1,
+      updatedAt: new Date(),
+    })
+    .where(eq(timelineProjects.id, timeline.id));
+
+  redirectSuccess(target, `Added ${captionClips.length} caption(s) from the transcript.`);
 }

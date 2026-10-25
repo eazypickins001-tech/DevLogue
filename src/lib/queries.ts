@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   aiAnalyses,
@@ -20,6 +20,7 @@ import {
   storyboards,
   timelineProjects,
   timelineRenderJobs,
+  transcriptionJobs,
   transcripts,
   usageRecords,
 } from "@/db/schema";
@@ -183,6 +184,46 @@ export async function listTimelineRenderJobs(timelineId: string) {
     .where(eq(timelineRenderJobs.timelineId, timelineId))
     .orderBy(desc(timelineRenderJobs.createdAt))
     .limit(20);
+}
+
+export async function getTimelineTranscription(recordingId: string) {
+  const db = getDb();
+  const audioAssets = await db
+    .select({ id: mediaAssets.id, track: mediaAssets.recordingTrack })
+    .from(mediaAssets)
+    .where(
+      and(
+        eq(mediaAssets.recordingId, recordingId),
+        inArray(mediaAssets.recordingTrack, ["microphone", "system"]),
+      ),
+    )
+    .orderBy(mediaAssets.createdAt);
+  if (audioAssets.length === 0) {
+    return { transcript: null, job: null, assetId: null, hasAudio: false };
+  }
+  const primary =
+    audioAssets.find((asset) => asset.track === "microphone") ?? audioAssets[0];
+  const assetIds = audioAssets.map((asset) => asset.id);
+  const [transcriptRows, jobRows] = await Promise.all([
+    db
+      .select()
+      .from(transcripts)
+      .where(inArray(transcripts.mediaAssetId, assetIds))
+      .orderBy(desc(transcripts.createdAt))
+      .limit(1),
+    db
+      .select()
+      .from(transcriptionJobs)
+      .where(inArray(transcriptionJobs.mediaAssetId, assetIds))
+      .orderBy(desc(transcriptionJobs.createdAt))
+      .limit(1),
+  ]);
+  return {
+    transcript: transcriptRows[0] ?? null,
+    job: jobRows[0] ?? null,
+    assetId: primary.id,
+    hasAudio: true,
+  };
 }
 
 export async function latestAnalysis(sessionId: string) {

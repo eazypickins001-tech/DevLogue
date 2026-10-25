@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { queueTimelineRender, saveTimeline } from "@/app/actions/recordings";
+import {
+  generateTimelineCaptions,
+  queueTimelineRender,
+  queueTimelineTranscription,
+  saveTimeline,
+} from "@/app/actions/recordings";
 import {
   buttonDanger,
   buttonPrimary,
@@ -28,12 +33,21 @@ type EditorAsset = {
   url: string;
 };
 
+type TranscriptionState = {
+  hasAudio: boolean;
+  hasTranscript: boolean;
+  segmentCount: number;
+  jobStatus: string | null;
+  jobError: string | null;
+};
+
 type Props = {
   timelineId: string;
   title: string;
   version: number;
   initialDocument: TimelineDocument;
   assets: EditorAsset[];
+  transcription: TranscriptionState;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -57,7 +71,14 @@ function defaultText(): TimelineText {
   };
 }
 
-export function TimelineEditor({ timelineId, title, version, initialDocument, assets }: Props) {
+export function TimelineEditor({
+  timelineId,
+  title,
+  version,
+  initialDocument,
+  assets,
+  transcription,
+}: Props) {
   const [document, setDocument] = useState<TimelineDocument>(() =>
     structuredClone(initialDocument),
   );
@@ -626,6 +647,56 @@ export function TimelineEditor({ timelineId, title, version, initialDocument, as
               <p className="mt-4 text-sm text-slate-600">
                 Pick a clip in the timeline, then adjust its start, duration, trim point or text.
               </p>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-sm font-semibold text-slate-900">Captions</h2>
+              {transcription.hasTranscript ? (
+                <span className="text-xs text-slate-500">
+                  {transcription.segmentCount} segment
+                  {transcription.segmentCount === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </div>
+            {transcription.hasTranscript ? (
+              <>
+                <p className="mt-2">Transcript is ready. Generate timed captions on the text track.</p>
+                <form action={generateTimelineCaptions} className="mt-3">
+                  <input type="hidden" name="timelineId" value={timelineId} />
+                  <button type="submit" className={`${buttonSecondary} w-full`}>
+                    Generate captions
+                  </button>
+                </form>
+              </>
+            ) : !transcription.hasAudio ? (
+              <p className="mt-2">This recording has no microphone or system-audio track.</p>
+            ) : transcription.jobStatus === "queued" || transcription.jobStatus === "running" ? (
+              <>
+                <p className="mt-2">
+                  Transcription is {transcription.jobStatus}. The worker must be running.
+                </p>
+                <Link
+                  className="mt-3 inline-block text-xs font-medium text-indigo-700"
+                  href={`/timelines/${timelineId}`}
+                >
+                  Refresh status
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="mt-2">Transcribe the microphone track, then generate captions.</p>
+                <form action={queueTimelineTranscription} className="mt-3">
+                  <input type="hidden" name="timelineId" value={timelineId} />
+                  <button type="submit" className={`${buttonSecondary} w-full`}>
+                    {transcription.jobStatus === "failed" ? "Retry transcription" : "Transcribe recording"}
+                  </button>
+                </form>
+                {transcription.jobError ? (
+                  <p className="mt-2 text-xs text-rose-700">{transcription.jobError}</p>
+                ) : null}
+              </>
             )}
           </section>
 

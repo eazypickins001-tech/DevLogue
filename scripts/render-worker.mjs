@@ -423,6 +423,33 @@ async function processTimelineJob(job) {
   rmSync(workDir, { recursive: true, force: true });
 }
 
+async function processTranscriptionJob(job) {
+  const sql = neon(required("DATABASE_URL"));
+  const { client, base } = r2Config();
+  const workDir = join(root, ".worker-tmp", job.id);
+  mkdirSync(workDir, { recursive: true });
+
+  const rows = await sql`select * from media_assets where id = ${job.media_asset_id}`;
+  const asset = rows[0];
+  if (!asset) throw new Error("Media asset not found.");
+  const existing = await sql`select id from transcripts where media_asset_id = ${asset.id} limit 1`;
+  if (existing.length === 0) {
+    await transcribeAssets({ sql, client, base, assets: [asset], workDir });
+  }
+  const stored = await sql`select id from transcripts where media_asset_id = ${asset.id} limit 1`;
+  if (stored.length === 0) {
+    throw new Error("No speech was transcribed. Check the audio track and Whisper setup.");
+  }
+
+  await sql`
+    update transcription_jobs
+    set status = 'succeeded', error = null, updated_at = now()
+    where id = ${job.id}
+  `;
+  console.log(`transcription: succeeded ${asset.filename}`);
+  rmSync(workDir, { recursive: true, force: true });
+}
+
 async function claimJob(sql) {
   const rows = await sql`
     update render_jobs
@@ -480,6 +507,34 @@ async function failTimelineJob(sql, job, error) {
   if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
 }
 
+async function claimTranscriptionJob(sql) {
+  const rows = await sql`
+    update transcription_jobs
+    set status = 'running', attempts = attempts + 1, updated_at = now()
+    where id = (
+      select id from transcription_jobs
+      where status = 'queued'
+      order by created_at
+      limit 1
+      for update skip locked
+    )
+    returning *
+  `;
+  return rows[0] ?? null;
+}
+
+async function failTranscriptionJob(sql, job, error) {
+  const message = error instanceof Error ? error.message : String(error);
+  await sql`
+    update transcription_jobs
+    set status = 'failed', error = ${message.slice(0, 2000)}, updated_at = now()
+    where id = ${job.id}
+  `;
+  console.log(`transcription: failed ${job.id}: ${message}`);
+  const workDir = join(root, ".worker-tmp", job.id);
+  if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
+}
+
 async function main() {
   loadEnv();
   const sql = neon(required("DATABASE_URL"));
@@ -489,6 +544,16 @@ async function main() {
   console.log(`worker: polling ${once ? "once" : "every 10s"}`);
 
   do {
+    const transcriptionJob = await claimTranscriptionJob(sql);
+    if (transcriptionJob) {
+      try {
+        await processTranscriptionJob(transcriptionJob);
+      } catch (error) {
+        await failTranscriptionJob(sql, transcriptionJob, error);
+      }
+      continue;
+    }
+
     const timelineJob = await claimTimelineJob(sql);
     if (timelineJob) {
       try {

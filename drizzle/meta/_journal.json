@@ -29,6 +29,13 @@
       "when": 1792903347375,
       "tag": "0003_sudden_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792935793814,
+      "tag": "0004_lumpy_xavin",
+      "breakpoints": true
     }
   ]
 }
