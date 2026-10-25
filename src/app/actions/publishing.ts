@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, isDatabaseConfigured } from "@/db";
 import {
@@ -9,6 +9,8 @@ import {
   publishingAccounts,
   publishingJobs,
   scheduledPosts,
+  timelineProjects,
+  timelineRenderJobs,
 } from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
 import {
@@ -135,10 +137,43 @@ async function uploadDraftMedia(draftId: string, sessionId: string): Promise<{
   warnings: string[];
 }> {
   const db = getDb();
-  const assets = await db
+  let assets = await db
     .select()
     .from(mediaAssets)
     .where(eq(mediaAssets.sessionId, sessionId));
+
+  const timelineRows = await db
+    .select({ id: timelineProjects.id })
+    .from(timelineProjects)
+    .where(eq(timelineProjects.draftId, draftId))
+    .limit(1);
+  if (timelineRows[0]) {
+    const jobRows = await db
+      .select({ outputKey: timelineRenderJobs.outputKey })
+      .from(timelineRenderJobs)
+      .where(
+        and(
+          eq(timelineRenderJobs.timelineId, timelineRows[0].id),
+          eq(timelineRenderJobs.status, "succeeded"),
+        ),
+      )
+      .orderBy(desc(timelineRenderJobs.createdAt))
+      .limit(1);
+    const outputKey = jobRows[0]?.outputKey;
+    if (!outputKey) {
+      throw new Error("This timeline draft has no successful render to publish.");
+    }
+    const rendered = await db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.storageKey, outputKey))
+      .limit(1);
+    if (!rendered[0]) {
+      throw new Error("The rendered timeline video could not be found.");
+    }
+    assets = rendered;
+  }
+
   const media: Array<{ url: string; type: "image" | "video" }> = [];
   const warnings: string[] = [];
 

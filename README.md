@@ -13,6 +13,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Timeline v1: multi-track preview, trim/timing inspector, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
 - Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
 - Transcript-driven captions: queue microphone/system-audio transcription, the worker stores timestamped Whisper segments, and the editor turns them into timed text clips.
+- Timeline-to-publishing handoff: a rendered timeline can create a short-video content draft; publishing that draft uploads only the rendered MP4, not the raw screen/camera tracks.
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
 - On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
 - Storyboards with durations normalized to the target runtime and scenes mapped to uploaded media.
@@ -205,6 +206,7 @@ Media strategy:
 
 - **Local / small files (≤25MB):** direct multipart upload to HighLevel.
 - **Production:** DevLogue serves a signed, expiring handoff URL at `/api/publishing-media/[token]`; HighLevel fetches it as `hosted` media. Set `APP_PUBLIC_URL` to the public HTTPS origin.
+- **Timeline drafts:** when a draft is linked to a timeline, only the latest successful timeline render is uploaded. Raw screen/camera/microphone tracks are not sent to HighLevel.
 - HighLevel's fetcher does not reliably read private R2 presigned URLs; the handoff route exists because of that verified failure.
 
 ## Local video worker

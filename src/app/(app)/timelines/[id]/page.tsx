@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TimelineEditor } from "@/components/timeline/timeline-editor";
-import { Badge, Card, CardHeader, FormMessage, PageHeader } from "@/components/ui";
+import { Badge, Card, CardHeader, FormMessage, PageHeader, linkClass } from "@/components/ui";
+import { createTimelineDraft } from "@/app/actions/recordings";
 import { getOwner, requireSession } from "@/lib/auth";
 import {
   getTimelineDetail,
@@ -29,6 +30,7 @@ export default async function TimelinePage({
 
   const { timeline, project, session, recording, assets } = detail;
   const transcription = recording ? await getTimelineTranscription(recording.id) : null;
+  const hasRendered = renderJobs.some(({ job }) => job.status === "succeeded");
   const media = assets.map((asset) => ({
     id: asset.id,
     filename: asset.filename,
@@ -77,6 +79,20 @@ export default async function TimelinePage({
         <CardHeader
           title="Render queue"
           description="Final MP4 rendering runs on the Contabo/local worker. Start it with pnpm worker."
+          action={
+            timeline.draftId ? (
+              <Link className={linkClass} href={`/studio/${timeline.draftId}`}>
+                Open draft
+              </Link>
+            ) : hasRendered ? (
+              <form action={createTimelineDraft}>
+                <input type="hidden" name="timelineId" value={timeline.id} />
+                <button type="submit" className={linkClass}>
+                  Create content draft
+                </button>
+              </form>
+            ) : null
+          }
         />
         {renderJobs.length === 0 ? (
           <p className="p-5 text-sm text-slate-600">

@@ -4,7 +4,10 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   buildSessions,
+  contentDrafts,
+  draftVersions,
   mediaAssets,
+  projects,
   recordings,
   timelineProjects,
   timelineRenderJobs,
@@ -463,4 +466,86 @@ export async function generateTimelineCaptions(formData: FormData): Promise<void
     .where(eq(timelineProjects.id, timeline.id));
 
   redirectSuccess(target, `Added ${captionClips.length} caption(s) from the transcript.`);
+}
+
+export async function createTimelineDraft(formData: FormData): Promise<void> {
+  await requireSession();
+  const timelineId = formString(formData, "timelineId");
+  const target = `/timelines/${timelineId}`;
+  const { db, owner, timeline } = await timelineForOwner(timelineId);
+  if (!timeline) redirectError("/timelines", "Timeline not found.");
+  if (timeline.draftId) redirectSuccess(`/studio/${timeline.draftId}`, "A draft is already linked to this timeline.");
+  if (!timeline.projectId) redirectError(target, "This timeline has no project.");
+
+  const projectRows = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, timeline.projectId))
+    .limit(1);
+  const project = projectRows[0];
+  if (!project) redirectError(target, "Project not found.");
+
+  const jobRows = await db
+    .select()
+    .from(timelineRenderJobs)
+    .where(
+      and(
+        eq(timelineRenderJobs.timelineId, timeline.id),
+        eq(timelineRenderJobs.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(timelineRenderJobs.createdAt))
+    .limit(1);
+  const job = jobRows[0];
+  if (!job?.outputKey) redirectError(target, "Render the timeline before creating a draft.");
+
+  const assetRows = await db
+    .select()
+    .from(mediaAssets)
+    .where(and(eq(mediaAssets.userId, owner.id), eq(mediaAssets.storageKey, job.outputKey)))
+    .limit(1);
+  const asset = assetRows[0];
+  if (!asset) redirectError(target, "The rendered video asset could not be found.");
+
+  const captionText = timeline.document.tracks
+    .flatMap((track) => track.clips)
+    .filter((clip) => clip.label === "Auto caption" && clip.text)
+    .map((clip) => clip.text!.content)
+    .join(" ")
+    .trim()
+    .slice(0, 1800);
+  const body = captionText || `Edited recording from ${timeline.title}.`;
+  const targetPlatform = project.platforms[0] ?? "instagram";
+
+  const inserted = await db
+    .insert(contentDrafts)
+    .values({
+      projectId: project.id,
+      sessionId: timeline.sessionId,
+      format: "short_video",
+      targetPlatform,
+      title: timeline.title,
+      body,
+      payload: { timelineId: timeline.id, renderedMediaId: asset.id },
+      status: "needs_review",
+      currentVersion: 1,
+    })
+    .returning({ id: contentDrafts.id });
+  const draft = inserted[0];
+  if (!draft) redirectError(target, "Could not create the content draft.");
+
+  await db.insert(draftVersions).values({
+    draftId: draft.id,
+    version: 1,
+    title: timeline.title,
+    body,
+    payload: { timelineId: timeline.id, renderedMediaId: asset.id },
+    source: "user",
+  });
+  await db
+    .update(timelineProjects)
+    .set({ draftId: draft.id, updatedAt: new Date() })
+    .where(eq(timelineProjects.id, timeline.id));
+
+  redirectSuccess(`/studio/${draft.id}`, "Content draft created from the rendered timeline.");
 }
