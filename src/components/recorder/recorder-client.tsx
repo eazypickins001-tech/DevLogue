@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { completeUpload, requestUpload } from "@/app/actions/media";
+import {
+  abortMultipartUpload,
+  completeMultipartUpload,
+  completeUpload,
+  requestUpload,
+} from "@/app/actions/media";
+import { uploadMultipart } from "@/lib/upload/multipart";
 import { createRecording } from "@/app/actions/recordings";
 import { SessionRecorder } from "@/lib/recording/media-recorder";
 import { startPreviewLoop } from "@/lib/recording/compositor";
@@ -251,16 +257,40 @@ export function RecorderClient({
           sizeBytes: track.blob.size,
         });
         if (!ticket.ok) throw new Error(ticket.error);
-        await putWithProgress(ticket.uploadUrl, track.blob, contentType, (fraction) => {
-          setSaveProgress((index + fraction) / total);
-        });
-        const completed = await completeUpload({
-          sessionId,
-          key: ticket.key,
-          filename: ticket.filename,
-          contentType,
-          sizeBytes: track.blob.size,
-        });
+        let completed;
+        if (ticket.mode === "single") {
+          await putWithProgress(ticket.uploadUrl, track.blob, contentType, (fraction) => {
+            setSaveProgress((index + fraction) / total);
+          });
+          completed = await completeUpload({
+            sessionId,
+            key: ticket.key,
+            filename: ticket.filename,
+            contentType,
+            sizeBytes: track.blob.size,
+          });
+        } else {
+          try {
+            await uploadMultipart(track.blob, ticket, {
+              onProgress: (fraction) => {
+                setSaveProgress((index + fraction) / total);
+              },
+            });
+            completed = await completeMultipartUpload({
+              uploadId: ticket.uploadId,
+              sessionId,
+              key: ticket.key,
+              filename: ticket.filename,
+              contentType,
+              sizeBytes: track.blob.size,
+            });
+          } catch (uploadError) {
+            await abortMultipartUpload({ uploadId: ticket.uploadId, sessionId }).catch(
+              () => undefined,
+            );
+            throw uploadError;
+          }
+        }
         if (!completed.ok) {
           throw new Error(completed.error ?? `Could not save the ${track.name} track.`);
         }

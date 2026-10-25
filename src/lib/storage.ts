@@ -120,3 +120,5 @@ export async function deleteObject(key: string): Promise<void> {
 export function buildMediaKey(userId: string, filename: string): string {
   return `media/${userId}/${crypto.randomUUID()}/${filename}`;
 }
+
+export { settings as storageSettings, client as storageClient, objectUrl as storageObjectUrl };

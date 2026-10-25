@@ -2,7 +2,13 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { completeUpload, requestUpload } from "@/app/actions/media";
+import {
+  abortMultipartUpload,
+  completeMultipartUpload,
+  completeUpload,
+  requestUpload,
+} from "@/app/actions/media";
+import { uploadMultipart } from "@/lib/upload/multipart";
 import { buttonSecondary, hintClass, inputClass, labelClass } from "@/components/ui";
 
 function readMediaMetadata(file: File): Promise<{ width?: number; height?: number; durationSeconds?: number }> {
@@ -58,12 +64,13 @@ export function MediaUploader({ sessionId }: { sessionId: string }) {
 
   async function upload(file: File) {
     setError(null);
-    setStatus(`Preparing ${file.name}…`);
+    setStatus(`Preparing ${file.name}...`);
     const metadata = await readMediaMetadata(file);
+    const contentType = file.type || "application/octet-stream";
     const ticket = await requestUpload({
       sessionId,
       filename: file.name,
-      contentType: file.type || "application/octet-stream",
+      contentType,
       sizeBytes: file.size,
     });
     if (!ticket.ok) {
@@ -71,21 +78,55 @@ export function MediaUploader({ sessionId }: { sessionId: string }) {
       setError(ticket.error);
       return;
     }
-    setStatus(`Uploading ${file.name}…`);
+
+    let completed;
     try {
-      const response = await fetch(ticket.uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-      });
-      if (!response.ok) {
-        setStatus(null);
-        setError(
-          `Upload to R2 failed (${response.status}). Check the bucket CORS policy allows PUT from this origin.`,
-        );
-        return;
+      if (ticket.mode === "single") {
+        setStatus(`Uploading ${file.name}...`);
+        const response = await fetch(ticket.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": contentType },
+        });
+        if (!response.ok) {
+          setStatus(null);
+          setError(
+            `Upload to R2 failed (${response.status}). Check the bucket CORS policy allows PUT from this origin.`,
+          );
+          return;
+        }
+        setStatus("Registering asset...");
+        completed = await completeUpload({
+          sessionId,
+          key: ticket.key,
+          filename: ticket.filename,
+          contentType,
+          sizeBytes: file.size,
+          notes,
+          ...metadata,
+        });
+      } else {
+        await uploadMultipart(file, ticket, {
+          onProgress: (fraction) => {
+            setStatus(`Uploading ${file.name} (${Math.round(fraction * 100)}%)...`);
+          },
+        });
+        setStatus("Registering asset...");
+        completed = await completeMultipartUpload({
+          uploadId: ticket.uploadId,
+          sessionId,
+          key: ticket.key,
+          filename: ticket.filename,
+          contentType,
+          sizeBytes: file.size,
+          notes,
+          ...metadata,
+        });
       }
     } catch (uploadError) {
+      if (ticket.mode === "multipart") {
+        await abortMultipartUpload({ uploadId: ticket.uploadId, sessionId }).catch(() => undefined);
+      }
       setStatus(null);
       setError(
         uploadError instanceof Error
@@ -95,16 +136,6 @@ export function MediaUploader({ sessionId }: { sessionId: string }) {
       return;
     }
 
-    setStatus("Registering asset…");
-    const completed = await completeUpload({
-      sessionId,
-      key: ticket.key,
-      filename: ticket.filename,
-      contentType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-      notes,
-      ...metadata,
-    });
     if (!completed.ok) {
       setStatus(null);
       setError(completed.error ?? "Could not register the uploaded file.");
@@ -115,7 +146,6 @@ export function MediaUploader({ sessionId }: { sessionId: string }) {
     if (inputRef.current) inputRef.current.value = "";
     startTransition(() => router.refresh());
   }
-
   return (
     <div className="space-y-3">
       <div>

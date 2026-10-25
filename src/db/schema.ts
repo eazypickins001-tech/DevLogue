@@ -340,6 +340,34 @@ export const mediaAssets = pgTable(
   ],
 );
 
+export const multipartUploads = pgTable(
+  "multipart_uploads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => buildSessions.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    uploadId: text("upload_id").notNull(),
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    partSize: integer("part_size").notNull(),
+    partCount: integer("part_count").notNull(),
+    status: text("status").notNull().default("uploading"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("multipart_uploads_key_unique").on(table.key),
+    index("multipart_uploads_user_idx").on(table.userId),
+    index("multipart_uploads_session_idx").on(table.sessionId),
+  ],
+);
+
 export const transcripts = pgTable(
   "transcripts",
   {

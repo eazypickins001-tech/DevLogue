@@ -8,7 +8,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 
 - Multi-project workspace with stage, audience, positioning, exclusions and platform preferences.
 - Build-session capture: manual notes plus structured evidence (commits, PRs, releases, issues, notes).
-- Private media uploads to Cloudflare R2 with presigned PUT, size/type validation, magic-byte checks and signed reads.
+- Private media uploads to Cloudflare R2 with presigned PUT, multipart uploads for files above 16MB, per-part retry/progress, size/type validation, magic-byte checks and signed reads.
 - Screen/camera recording: raw screen, camera, microphone and system-audio tracks; camera PiP can be off, recorded-only or visible; 16:9/9:16; saves to a session and creates an editable timeline.
 - Timeline v1: multi-track preview, trim/timing inspector, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
 - Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
@@ -140,7 +140,7 @@ R2_BUCKET=devlogue-media
 
 If the bucket was created in a jurisdiction (EU/US/FedRAMP), set `R2_ENDPOINT` to the jurisdiction endpoint instead of the default. The current implementation uses the default endpoint; contact the maintainer before using a jurisdictional bucket.
 
-Uploads are private. Uploads go browser → R2 via presigned PUT, then the server verifies size and magic bytes. Reads go through `/api/media/[id]`, which requires the session cookie and redirects to a five-minute signed URL.
+Uploads are private. Files up to 16MB use a single presigned PUT; larger files use R2 multipart uploads with per-part retry and progress. The server verifies size and magic bytes before registering the asset. Reads go through `/api/media/[id]`, which requires the session cookie and redirects to a five-minute signed URL.
 
 ### AI provider
 
@@ -286,7 +286,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - **Video rendering is local-only.** The worker needs FFmpeg and faster-whisper installed on the machine running it. Production can queue jobs but cannot render them. Storyboard renders use silent audio with on-screen narration; timeline renders mix the recorded microphone/system tracks. There is no TTS or voice-over generation yet.
 - **Timeline rendering and transcription are local-only.** Final MP4s and Whisper transcripts queue in Postgres and are produced by `pnpm worker`; Vercel can save and queue them but cannot process them.
 - **Caption generation is manual and one-shot.** It replaces clips labeled `Auto caption` when regenerated; manually edited captions keep their own labels.
-- **Recordings use single-PUT uploads.** Each raw track must stay under the current 512MB video limit. The recorder keeps 15-minute tracks under that with 4Mbps screen and 3Mbps camera bitrates; multipart/resumable upload is still pending.
+- **Large recordings use multipart uploads.** Files above 16MB split into 16MB parts with concurrency, per-part retry and progress. Resume across a page reload is still pending; each track must remain under the 512MB video limit.
 - **Screen and camera start offsets are assumed aligned.** Tracks are recorded as separate streams and start together; manual offset correction is not in the inspector yet.
 - **Platform-specific fields** for TikTok, YouTube and Threads (privacy, title, etc.) are not sent yet; verify drafts in Social Planner before scheduling.
 - **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
