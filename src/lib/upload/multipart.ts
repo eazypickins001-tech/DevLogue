@@ -3,6 +3,7 @@ export type MultipartTicket = {
   key: string;
   partSize: number;
   parts: { partNumber: number; url: string }[];
+  completedParts?: number[];
 };
 
 type UploadOptions = {
@@ -42,8 +43,14 @@ export async function uploadMultipart(
   const parts = [...ticket.parts].sort((a, b) => a.partNumber - b.partNumber);
   const concurrency = Math.max(1, Math.min(options.concurrency ?? 3, parts.length || 1));
   const maxRetries = options.maxRetries ?? 3;
+  const completed = new Set(ticket.completedParts ?? []);
+  const partBytes = (partNumber: number) => {
+    const start = (partNumber - 1) * ticket.partSize;
+    return Math.max(0, Math.min(file.size, start + ticket.partSize) - start);
+  };
   let next = 0;
-  let uploaded = 0;
+  let uploaded = parts.reduce((sum, part) => sum + (completed.has(part.partNumber) ? partBytes(part.partNumber) : 0), 0);
+  options.onProgress?.(file.size > 0 ? uploaded / file.size : 1);
 
   const worker = async () => {
     while (true) {
@@ -51,6 +58,7 @@ export async function uploadMultipart(
       next += 1;
       if (index >= parts.length) return;
       const part = parts[index];
+      if (completed.has(part.partNumber)) continue;
       const start = (part.partNumber - 1) * ticket.partSize;
       const end = Math.min(file.size, start + ticket.partSize);
       const blob = file.slice(start, end);

@@ -7,9 +7,11 @@ import {
   completeMultipartUpload,
   completeUpload,
   requestUpload,
+  resumeMultipartUpload,
 } from "@/app/actions/media";
 import { uploadMultipart } from "@/lib/upload/multipart";
 import { buttonSecondary, hintClass, inputClass, labelClass } from "@/components/ui";
+import { formatBytes } from "@/lib/labels";
 
 function readMediaMetadata(file: File): Promise<{ width?: number; height?: number; durationSeconds?: number }> {
   if (file.type.startsWith("image/")) {
@@ -54,14 +56,99 @@ function readMediaMetadata(file: File): Promise<{ width?: number; height?: numbe
   return Promise.resolve({});
 }
 
-export function MediaUploader({ sessionId }: { sessionId: string }) {
+type PendingUpload = {
+  id: string;
+  filename: string;
+  sizeBytes: number;
+  partCount: number;
+  createdAt: Date | string;
+};
+
+export function MediaUploader({
+  sessionId,
+  pendingUploads,
+}: {
+  sessionId: string;
+  pendingUploads: PendingUpload[];
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [resumeTarget, setResumeTarget] = useState<PendingUpload | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  async function resume(file: File, upload: PendingUpload) {
+    setError(null);
+    if (file.size !== upload.sizeBytes) {
+      setError("Choose the original file size to resume this upload.");
+      return;
+    }
+    setStatus(`Resuming ${upload.filename}...`);
+    const contentType = file.type || "application/octet-stream";
+    const ticket = await resumeMultipartUpload({
+      uploadId: upload.id,
+      sessionId,
+      filename: file.name,
+      sizeBytes: file.size,
+    });
+    if (!ticket.ok) {
+      setStatus(null);
+      setError(ticket.error);
+      return;
+    }
+    if (ticket.mode !== "multipart") {
+      setStatus(null);
+      setError("This upload cannot be resumed.");
+      return;
+    }
+
+    try {
+      await uploadMultipart(file, ticket, {
+        onProgress: (fraction) => {
+          setStatus(`Resuming ${upload.filename} (${Math.round(fraction * 100)}%)...`);
+        },
+      });
+      setStatus("Registering asset...");
+      const completed = await completeMultipartUpload({
+        uploadId: ticket.uploadId,
+        sessionId,
+        key: ticket.key,
+        filename: ticket.filename,
+        contentType,
+        sizeBytes: file.size,
+        notes,
+      });
+      if (!completed.ok) throw new Error(completed.error);
+      setStatus(null);
+      setResumeTarget(null);
+      if (resumeInputRef.current) resumeInputRef.current.value = "";
+      startTransition(() => router.refresh());
+    } catch (resumeError) {
+      await abortMultipartUpload({ uploadId: ticket.uploadId, sessionId }).catch(() => undefined);
+      setStatus(null);
+      setError(
+        resumeError instanceof Error
+          ? `Resume failed: ${resumeError.message}`
+          : "Resume failed.",
+      );
+    }
+  }
+
+  async function cancelPending(upload: PendingUpload) {
+    setError(null);
+    setStatus(`Cancelling ${upload.filename}...`);
+    const result = await abortMultipartUpload({ uploadId: upload.id, sessionId });
+    if (!result.ok) {
+      setStatus(null);
+      setError(result.error ?? "Could not cancel the upload.");
+      return;
+    }
+    setStatus(null);
+    startTransition(() => router.refresh());
+  }
   async function upload(file: File) {
     setError(null);
     setStatus(`Preparing ${file.name}...`);
@@ -148,6 +235,60 @@ export function MediaUploader({ sessionId }: { sessionId: string }) {
   }
   return (
     <div className="space-y-3">
+      <input
+        ref={resumeInputRef}
+        type="file"
+        className="hidden"
+        accept="image/*,video/*,audio/*,application/pdf,text/plain,text/markdown"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          const target = resumeTarget;
+          event.target.value = "";
+          if (file && target) void resume(file, target);
+        }}
+      />
+      {pendingUploads.length > 0 ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <h3 className="text-sm font-semibold text-amber-900">Interrupted uploads</h3>
+          <p className="mt-1 text-xs text-amber-900/80">
+            Select the same file again to resume from the parts already uploaded.
+          </p>
+          <ul className="mt-2 space-y-2">
+            {pendingUploads.map((upload) => (
+              <li
+                key={upload.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-white px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{upload.filename}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatBytes(upload.sizeBytes)} - {upload.partCount} parts
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-indigo-700 hover:text-indigo-900"
+                    onClick={() => {
+                      setResumeTarget(upload);
+                      resumeInputRef.current?.click();
+                    }}
+                  >
+                    Resume
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-rose-700 hover:text-rose-900"
+                    onClick={() => void cancelPending(upload)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div>
         <label htmlFor="media-file" className={labelClass}>
           Recording, screenshot or document

@@ -28,7 +28,12 @@ import {
 import { getOwner, requireSession } from "@/lib/auth";
 import { isAiConfigured } from "@/lib/env";
 import { isStorageConfigured } from "@/lib/storage";
-import { getSessionDetail, listProjects, listTimelinesForSession } from "@/lib/queries";
+import {
+  getSessionDetail,
+  listPendingMultipartUploads,
+  listProjects,
+  listTimelinesForSession,
+} from "@/lib/queries";
 import { formatDuration } from "@/lib/recording/types";
 import {
   DRAFT_STATUS_LABELS,
@@ -73,9 +78,10 @@ export default async function SessionDetailPage({
   const owner = await getOwner();
   const detail = await getSessionDetail(owner.id, id);
   if (!detail) notFound();
-  const [projects, sessionTimelines] = await Promise.all([
+  const [projects, sessionTimelines, pendingUploads] = await Promise.all([
     listProjects(owner.id),
     listTimelinesForSession(owner.id, id),
+    listPendingMultipartUploads(owner.id, id),
   ]);
 
   const { session, project, evidence, media, analyses, drafts } = detail;
@@ -243,7 +249,7 @@ export default async function SessionDetailPage({
             />
             <div className="p-5">
               {isStorageConfigured() ? (
-                <MediaUploader sessionId={session.id} />
+                <MediaUploader sessionId={session.id} pendingUploads={pendingUploads} />
               ) : (
                 <SetupNotice title="Uploads need Cloudflare R2">
                   <p>

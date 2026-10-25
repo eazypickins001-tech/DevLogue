@@ -10,6 +10,7 @@ import {
   draftVersions,
   feedback,
   mediaAssets,
+  multipartUploads,
   projects,
   publishingAccounts,
   recordings,
@@ -183,6 +184,28 @@ export async function listTimelineRenderJobs(timelineId: string) {
     .leftJoin(mediaAssets, eq(mediaAssets.storageKey, timelineRenderJobs.outputKey))
     .where(eq(timelineRenderJobs.timelineId, timelineId))
     .orderBy(desc(timelineRenderJobs.createdAt))
+    .limit(20);
+}
+
+export async function listPendingMultipartUploads(userId: string, sessionId: string) {
+  const db = getDb();
+  return db
+    .select({
+      id: multipartUploads.id,
+      filename: multipartUploads.filename,
+      sizeBytes: multipartUploads.sizeBytes,
+      partCount: multipartUploads.partCount,
+      createdAt: multipartUploads.createdAt,
+    })
+    .from(multipartUploads)
+    .where(
+      and(
+        eq(multipartUploads.userId, userId),
+        eq(multipartUploads.sessionId, sessionId),
+        eq(multipartUploads.status, "uploading"),
+      ),
+    )
+    .orderBy(desc(multipartUploads.createdAt))
     .limit(20);
 }
 

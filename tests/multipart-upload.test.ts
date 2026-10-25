@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { uploadMultipart } from "@/lib/upload/multipart";
 
-function ticket(partNumbers = [1, 2, 3]) {
+function ticket(partNumbers = [1, 2, 3]): {
+  uploadId: string;
+  key: string;
+  partSize: number;
+  parts: { partNumber: number; url: string }[];
+  completedParts?: number[];
+} {
   return {
     uploadId: "upload-1",
     key: "media/test.webm",
@@ -37,6 +43,26 @@ describe("uploadMultipart", () => {
     expect(progress.at(-1)).toBe(1);
   });
 
+  it("skips parts already uploaded by a previous attempt", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(url);
+        return new Response(null, { status: 200 });
+      }),
+    );
+    const progress: number[] = [];
+    const pending = ticket();
+    pending.completedParts = [1, 3];
+    await uploadMultipart(new Blob([new Uint8Array(10)]), pending, {
+      onProgress: (fraction) => progress.push(fraction),
+    });
+
+    expect(urls).toEqual(["https://r2.example/part-2"]);
+    expect(progress[0]).toBeCloseTo(0.6);
+    expect(progress.at(-1)).toBe(1);
+  });
   it("retries a failed part", async () => {
     let calls = 0;
     vi.stubGlobal(

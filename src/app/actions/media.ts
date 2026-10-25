@@ -13,7 +13,7 @@ import {
   presignPut,
   readObjectPrefix,
 } from "@/lib/storage";
-import { matchesSignature, validateUpload } from "@/lib/domain/media";
+import { matchesSignature, safeFilename, validateUpload } from "@/lib/domain/media";
 import {
   MULTIPART_PART_SIZE,
   MULTIPART_THRESHOLD,
@@ -42,6 +42,7 @@ export type UploadTicket =
       filename: string;
       partSize: number;
       parts: MultipartPartUrl[];
+      completedParts?: number[];
     }
   | { ok: false; error: string };
 
@@ -146,6 +147,83 @@ export async function requestUpload(input: {
     filename: validation.filename,
     partSize,
     parts,
+  };
+}
+export async function resumeMultipartUpload(input: {
+  uploadId: string;
+  sessionId: string;
+  filename: string;
+  sizeBytes: number;
+}): Promise<UploadTicket> {
+  await requireSession();
+  if (!isDatabaseConfigured()) return { ok: false, error: "Database is not configured." };
+  if (!isStorageConfigured()) return { ok: false, error: STORAGE_ERROR };
+  const owner = await getOwner();
+  if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) {
+    return { ok: false, error: "File size is missing or invalid." };
+  }
+  const filename = safeFilename(input.filename);
+
+  const rows = await getDb()
+    .select()
+    .from(multipartUploads)
+    .where(
+      and(
+        eq(multipartUploads.id, input.uploadId),
+        eq(multipartUploads.userId, owner.id),
+        eq(multipartUploads.sessionId, input.sessionId),
+        eq(multipartUploads.status, "uploading"),
+      ),
+    )
+    .limit(1);
+  const upload = rows[0];
+  if (!upload) return { ok: false, error: "Pending upload not found." };
+  if (upload.filename !== filename || upload.sizeBytes !== input.sizeBytes) {
+    return { ok: false, error: "Choose the original file to resume this upload." };
+  }
+
+  let completedParts: number[] = [];
+  try {
+    const parts = await listMultipartParts(upload.key, upload.uploadId);
+    completedParts = parts.map((part) => part.partNumber);
+  } catch (error) {
+    await getDb()
+      .update(multipartUploads)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(multipartUploads.id, upload.id));
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not inspect the pending upload.",
+    };
+  }
+
+  let parts: MultipartPartUrl[];
+  try {
+    parts = await Promise.all(
+      Array.from({ length: upload.partCount }, async (_, index) => {
+        const partNumber = index + 1;
+        return {
+          partNumber,
+          url: await presignUploadPart(upload.key, upload.uploadId, partNumber),
+        };
+      }),
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not sign the upload parts.",
+    };
+  }
+
+  return {
+    ok: true,
+    mode: "multipart",
+    uploadId: upload.id,
+    key: upload.key,
+    filename: upload.filename,
+    partSize: upload.partSize,
+    parts,
+    completedParts,
   };
 }
 export type CompleteUploadResult =
