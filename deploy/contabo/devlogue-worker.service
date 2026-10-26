@@ -1,0 +1,19 @@
+[Unit]
+Description=DevLogue worker control service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/devlogue
+EnvironmentFile=/etc/devlogue/worker.env
+ExecStart=/usr/bin/env pnpm worker:control
+Restart=always
+RestartSec=5
+User=devlogue
+Group=devlogue
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
