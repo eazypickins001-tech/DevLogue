@@ -23,6 +23,8 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - GoHighLevel Social Planner handoff: discover accounts, select per project, upload media, create **drafts** or **scheduled** posts, log jobs, remove drafts.
 - Test mode (`GHL_TEST_MODE=true`, the documented default): posts are created as HighLevel drafts and never published.
 - Content studio, calendar, feedback inbox, analytics from your own data, integration status and read-only connection checks.
+- In-app help and user guide (`/help`) covering recording, editing, captions, rendering, publishing, storage and troubleshooting.
+- Light, dark and system theme modes with a persisted preference.
 
 Verified end-to-end with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → removal → cleanup. A real scheduled post was also created against the Ai4Beginners Facebook page (10:00 Africa/Kigali → 08:00Z), confirmed as `scheduled` in HighLevel, then deleted before publication.
 

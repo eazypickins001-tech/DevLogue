@@ -23,8 +23,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </form>
         </div>
         {children}
-        <footer className="border-t border-slate-200 pt-4 text-xs text-slate-500">
-          DevLogue — evidence first. AI drafts never publish themselves.
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-500">
+          <span>DevLogue - evidence first. AI drafts never publish themselves.</span>
+          <Link className="font-medium text-slate-600 hover:text-slate-900" href="/help">Help and user guide</Link>
         </footer>
       </div>
     </div>
