@@ -1,0 +1,12 @@
+name = "devlogue-worker-proxy"
+main = "src/index.js"
+compatibility_date = "2026-10-26"
+account_id = "95db3f36ec1c4fbfba89c2c6704d9104"
+workers_dev = false
+
+routes = [
+  { pattern = "worker.kiganza.online", custom_domain = true }
+]
+
+[vars]
+ORIGIN = "https://worker.178.18.246.145.sslip.io"

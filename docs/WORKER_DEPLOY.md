@@ -6,7 +6,8 @@ This is the permanent worker path: DevLogue on Vercel calls a token-protected co
 
 - Coolify host: `coolify.kiganza.online` on `178.18.246.145`. Note: `84.247.129.45` is a different VPS and does not host this app.
 - App: `devlogue-worker`, Dockerfile `/Dockerfile.worker`, internal port `4100`, health check `/health`.
-- Public URL: `https://worker.178.18.246.145.sslip.io` (sslip.io DNS). Move to `worker.kiganza.online` after adding a DNS record.
+- Origin URL: `https://worker.178.18.246.145.sslip.io` (Coolify/Let's Encrypt).
+- Public URL: `https://worker.kiganza.online`, served by the Cloudflare Worker proxy in `infra/worker-proxy`.
 - Coolify env: `DATABASE_URL`, `R2_*`, `WORKER_CONTROL_TOKEN`, `WORKER_CONTROL_AUTOSTART=true`, `WHISPER_MODEL=base.en`.
 - Vercel Production: `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` set. `/health` returns `200`; `/status` reports `running`.
 
@@ -62,12 +63,18 @@ curl http://127.0.0.1:4100/health
 
 ## Expose it safely
 
-Do not publish port `4100` directly. The current deployment uses Coolify Traefik with an `sslip.io` hostname and a valid HTTPS certificate. A Cloudflare Tunnel is optional for a stable custom hostname.
+Do not publish port `4100` directly. Coolify Traefik serves the origin at `https://worker.178.18.246.145.sslip.io` with a valid HTTPS certificate. The stable `https://worker.kiganza.online` hostname is a Cloudflare Worker proxy:
 
-For a custom domain, point a DNS record at the Coolify host and set the Coolify app FQDN to `https://worker.kiganza.online`. Then set in Vercel Production:
+```bash
+npx wrangler deploy --config infra/worker-proxy/wrangler.toml
+```
+
+The proxy allows only `/health`, `/status`, `/start` and `/stop`; `/health` is public, the other paths require the bearer token. It forwards to the origin and does not store the token.
+
+Then set in Vercel Production:
 
 ```dotenv
-WORKER_CONTROL_URL=https://worker.178.18.246.145.sslip.io
+WORKER_CONTROL_URL=https://worker.kiganza.online
 WORKER_CONTROL_TOKEN=a-long-random-token
 ```
 
