@@ -577,7 +577,7 @@ export function TimelineEditor({
                 </label>
                 {selected.clip.kind !== "text" ? (
                   <label className="block">
-                    <span className={labelClass}>Source in (seconds)</span>
+                    <span className={labelClass}>Source trim (seconds)</span>
                     <input
                       type="number"
                       min={0}
@@ -591,6 +591,59 @@ export function TimelineEditor({
                       }
                     />
                   </label>
+                ) : null}
+                {selected.track.kind === "overlay" || selected.clip.kind === "audio" ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={labelClass}>Sync offset</span>
+                      <span className="text-xs font-medium text-slate-600">
+                        {Math.round(selected.clip.startSec * 1000)} ms
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {[-500, -100, 100, 500].map((delta) => (
+                        <button
+                          key={delta}
+                          type="button"
+                          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                          onClick={() =>
+                            updateClip(selected.clip.id, {
+                              startSec: Math.max(
+                                0,
+                                Math.round(selected.clip.startSec * 1000 + delta) / 1000,
+                              ),
+                            })
+                          }
+                        >
+                          {delta > 0 ? `+${delta}` : delta} ms
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="number"
+                        step={10}
+                        className={`${inputClass} w-24`}
+                        value={Math.round(selected.clip.startSec * 1000)}
+                        onChange={(event) =>
+                          updateClip(selected.clip.id, {
+                            startSec: Math.max(0, Number(event.target.value) / 1000),
+                          })
+                        }
+                      />
+                      <span className="text-xs text-slate-500">ms</span>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-indigo-700 hover:text-indigo-900"
+                        onClick={() => updateClip(selected.clip.id, { startSec: 0 })}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    <p className={hintClass}>
+                      Positive values delay this camera or audio track relative to the screen.
+                    </p>
+                  </div>
                 ) : null}
                 {selected.clip.kind === "audio" ? (
                   <label className="block">

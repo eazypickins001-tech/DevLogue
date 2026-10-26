@@ -10,7 +10,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Build-session capture: manual notes plus structured evidence (commits, PRs, releases, issues, notes).
 - Private media uploads to Cloudflare R2 with presigned PUT, multipart uploads for files above 16MB, per-part retry/progress, resume-after-reload, size/type validation, magic-byte checks and signed reads.
 - Screen/camera recording: raw screen, camera, microphone and system-audio tracks; camera PiP can be off, recorded-only or visible; 16:9/9:16; saves to a session and creates an editable timeline.
-- Timeline v1: multi-track preview, trim/timing inspector, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
+- Timeline v1: multi-track preview, trim/timing inspector, camera/audio sync-offset nudges, source trim, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
 - Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
 - Transcript-driven captions: saving a recording queues microphone and system-audio transcription, the worker stores timestamped Whisper segments, and the editor turns the preferred transcript into timed text clips.
 - Timeline-to-publishing handoff: a rendered timeline can create a short-video content draft; publishing that draft uploads only the rendered MP4, not the raw screen/camera tracks.
@@ -287,7 +287,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - **Timeline rendering and transcription are local-only.** Final MP4s and Whisper transcripts queue in Postgres and are produced by `pnpm worker`; Vercel can save and queue them but cannot process them.
 - **Caption generation is manual and one-shot.** It replaces clips labeled `Auto caption` when regenerated; manually edited captions keep their own labels.
 - **Large recordings use multipart uploads.** Files above 16MB split into 16MB parts with concurrency, per-part retry and progress. Interrupted uploads can be resumed from the session Media card by selecting the same file again; each track must remain under the 512MB video limit.
-- **Screen and camera start offsets are assumed aligned.** Tracks are recorded as separate streams and start together; manual offset correction is not in the inspector yet.
+- **Camera/audio sync is manual.** Tracks start together, but drift or device latency can be corrected with the inspector's +/-100ms and +/-500ms nudges, a numeric offset, and source trim. There is no automatic audio/video alignment yet.
 - **Platform-specific fields** for TikTok, YouTube and Threads (privacy, title, etc.) are not sent yet; verify drafts in Social Planner before scheduling.
 - **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
 - **No audience analytics import.** Views/likes/waitlist numbers are manual by design.
