@@ -12,6 +12,7 @@ import {
   listTimelines,
 } from "@/lib/queries";
 import { WorkerControl } from "@/components/worker-control";
+import { getWorkerLogTail } from "@/lib/worker-status";
 import { formatDate, formatDateTime } from "@/lib/labels";
 import { formatDuration } from "@/lib/recording/types";
 
@@ -31,11 +32,12 @@ export default async function VideoPage() {
   }
 
   const owner = await getOwner();
-  const [boards, jobs, queue, timelines] = await Promise.all([
+  const [boards, jobs, queue, timelines, workerLog] = await Promise.all([
     listStoryboardDrafts(owner.id),
     listRenderJobsForUser(owner.id),
     getWorkerQueueSummary(),
     listTimelines(owner.id),
+    getWorkerLogTail(),
   ]);
   const renderedTimelines = timelines.filter((row) => row.renderMediaId);
   const failedCount = Object.values(queue).reduce((total, counts) => total + (counts.failed ?? 0), 0);
@@ -71,6 +73,26 @@ export default async function VideoPage() {
             want to free the server.
           </p>
         </div>
+      </Card>
+
+      <Card>
+        <details className="group">
+          <summary className="cursor-pointer list-none px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold tracking-tight text-slate-900">Recent worker log</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Open to inspect the latest startup, render and failure lines.
+                </p>
+              </div>
+              <span className="text-xs text-slate-500 group-open:hidden">Show</span>
+              <span className="hidden text-xs text-slate-500 group-open:inline">Hide</span>
+            </div>
+          </summary>
+          <pre className="max-h-80 overflow-auto border-t border-slate-100 bg-slate-950 p-4 text-xs leading-5 text-slate-200">
+            {workerLog}
+          </pre>
+        </details>
       </Card>
 
       <Card>

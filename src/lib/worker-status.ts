@@ -41,3 +41,20 @@ export async function getWorkerSnapshot(): Promise<WorkerSnapshot> {
     };
   }
 }
+
+export async function getWorkerLogTail(): Promise<string> {
+  const config = controlConfig();
+  if (!config) return "Worker control is not configured.";
+  try {
+    const response = await fetch(`${config.url}/log`, {
+      headers: { Authorization: `Bearer ${config.token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!response.ok) return `Worker log unavailable (HTTP ${response.status}).`;
+    const body = (await response.json()) as { log?: string };
+    return body.log?.trim() || "No worker output yet.";
+  } catch (error) {
+    return error instanceof Error ? error.message : "Worker log request failed.";
+  }
+}
