@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.*
+.venv
+.worker-tmp
+.vercel
+src
+public
+tests
+docs
+drizzle
+dev*.log
+*.log

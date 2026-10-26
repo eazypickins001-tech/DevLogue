@@ -128,14 +128,20 @@ export function resolveFfmpeg(env = process.env) {
 }
 
 export function resolveWhisper(env = process.env) {
-  const python = env.WHISPER_PYTHON || join(root, ".venv", "Scripts", "python.exe");
+  const python =
+    env.WHISPER_PYTHON ||
+    [join(root, ".venv", "bin", "python"), join(root, ".venv", "Scripts", "python.exe")].find((path) =>
+      existsSync(path),
+    );
   const script = join(root, "scripts", "transcribe.py");
-  if (!existsSync(python) || !existsSync(script)) return null;
+  if (!python || !existsSync(script)) return null;
   return { python, script, model: env.WHISPER_MODEL || "base.en" };
 }
 
 export function defaultFont() {
   const candidates = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "C:\\Windows\\Fonts\\arialbd.ttf",
     "C:\\Windows\\Fonts\\segoeuib.ttf",
     "C:\\Windows\\Fonts\\arial.ttf",
