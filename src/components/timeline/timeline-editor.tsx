@@ -320,7 +320,7 @@ export function TimelineEditor({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-sm">
             <div className="flex items-center justify-center p-3">
               <div
@@ -612,7 +612,7 @@ export function TimelineEditor({
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
