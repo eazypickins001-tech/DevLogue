@@ -78,6 +78,9 @@ export default async function ProjectDetailPage({
             <Link href={`/sessions/new?projectId=${project.id}`} className={buttonPrimary}>
               Capture session
             </Link>
+            <Link href={`/projects/${project.id}#delete`} className="text-sm font-medium text-rose-700 hover:text-rose-900">
+              Delete
+            </Link>
           </>
         }
       />
@@ -279,10 +282,10 @@ export default async function ProjectDetailPage({
             </div>
           </Card>
 
-          <Card className="border-rose-200">
+          <Card id="delete" className="border-rose-200">
             <CardHeader
               title="Delete project"
-              description="Deletes sessions, evidence, drafts and feedback. Media objects must be deleted individually first."
+              description="Permanently deletes sessions, evidence, drafts, timelines, renders, derivatives and all related R2 objects."
             />
             <form action={deleteProjectData} className="space-y-3 p-5">
               <input type="hidden" name="projectId" value={project.id} />

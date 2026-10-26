@@ -16,7 +16,7 @@ import {
 } from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
 import { redirectError, redirectSuccess } from "@/lib/forms";
-import { isStorageConfigured } from "@/lib/storage";
+import { deleteObject, isStorageConfigured } from "@/lib/storage";
 import { formString } from "@/lib/validation";
 import {
   CAMERA_POSITIONS,
@@ -581,4 +581,70 @@ export async function createTimelineDraft(formData: FormData): Promise<void> {
     .where(eq(timelineProjects.id, timeline.id));
 
   redirectSuccess(`/studio/${draft.id}`, "Content draft created from the rendered timeline.");
+}
+
+export async function deleteTimeline(formData: FormData): Promise<void> {
+  await requireSession();
+  const timelineId = formString(formData, "timelineId");
+  const target = `/timelines/${timelineId}`;
+  const { db, owner, timeline } = await timelineForOwner(timelineId);
+  if (!timeline) redirectError("/timelines", "Timeline not found.");
+  if (timeline.draftId) {
+    redirectError(target, "This timeline is linked to a content draft. Delete or archive the draft first.");
+  }
+
+  const active = await db
+    .select({ id: timelineRenderJobs.id })
+    .from(timelineRenderJobs)
+    .where(
+      and(
+        eq(timelineRenderJobs.timelineId, timeline.id),
+        inArray(timelineRenderJobs.status, ["queued", "running"]),
+      ),
+    )
+    .limit(1);
+  if (active.length > 0) {
+    redirectError(target, "A render is queued or running. Wait for it to finish before deleting.");
+  }
+
+  const jobs = await db
+    .select({ outputKey: timelineRenderJobs.outputKey })
+    .from(timelineRenderJobs)
+    .where(eq(timelineRenderJobs.timelineId, timeline.id));
+  const outputKeys = jobs
+    .map((job) => job.outputKey)
+    .filter((key): key is string => Boolean(key));
+  const outputs =
+    outputKeys.length > 0
+      ? await db
+          .select()
+          .from(mediaAssets)
+          .where(
+            and(
+              eq(mediaAssets.userId, owner.id),
+              inArray(mediaAssets.storageKey, outputKeys),
+            ),
+          )
+      : [];
+
+  if (isStorageConfigured()) {
+    for (const asset of outputs) {
+      for (const key of [asset.storageKey, asset.thumbnailKey, asset.waveformKey].filter(
+        (value): value is string => Boolean(value),
+      )) {
+        await deleteObject(key).catch(() => undefined);
+      }
+    }
+    for (const key of outputKeys) {
+      await deleteObject(key).catch(() => undefined);
+    }
+  }
+
+  if (outputs.length > 0) {
+    await db.delete(mediaAssets).where(inArray(mediaAssets.id, outputs.map((asset) => asset.id)));
+  }
+  await db
+    .delete(timelineProjects)
+    .where(and(eq(timelineProjects.id, timeline.id), eq(timelineProjects.userId, owner.id)));
+  redirectSuccess("/timelines", "Timeline and rendered video deleted. Raw recording tracks were kept.");
 }

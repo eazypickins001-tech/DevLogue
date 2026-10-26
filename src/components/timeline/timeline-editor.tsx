@@ -346,6 +346,7 @@ export function TimelineEditor({
                             else videoRefs.current.delete(clip.id);
                           }}
                           src={asset.url}
+                          poster={asset.thumbnailUrl ?? undefined}
                           muted
                           playsInline
                           preload="auto"

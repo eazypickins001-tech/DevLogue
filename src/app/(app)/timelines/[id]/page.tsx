@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TimelineEditor } from "@/components/timeline/timeline-editor";
-import { Badge, Card, CardHeader, FormMessage, PageHeader, linkClass } from "@/components/ui";
-import { createTimelineDraft } from "@/app/actions/recordings";
+import { ConfirmSubmit } from "@/components/confirm-submit";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  FormMessage,
+  PageHeader,
+  buttonDanger,
+  linkClass,
+} from "@/components/ui";
+import { createTimelineDraft, deleteTimeline } from "@/app/actions/recordings";
 import { getOwner, requireSession } from "@/lib/auth";
 import { ensureDerivativeJobsForRecording } from "@/lib/services/derivatives";
 import {
@@ -141,6 +150,21 @@ export default async function TimelinePage({
             ))}
           </ul>
         )}
+      </Card>
+      <Card className="border-rose-200">
+        <CardHeader
+          title="Delete timeline"
+          description="Deletes this timeline and its rendered video. Raw recording tracks stay in the session."
+        />
+        <form action={deleteTimeline} className="p-5">
+          <input type="hidden" name="timelineId" value={timeline.id} />
+          <ConfirmSubmit
+            message="Delete this timeline and its rendered video? Raw recording tracks will be kept."
+            className={buttonDanger}
+          >
+            Delete timeline
+          </ConfirmSubmit>
+        </form>
       </Card>
     </div>
   );

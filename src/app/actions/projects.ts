@@ -1,12 +1,14 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { getDb, isDatabaseConfigured } from "@/db";
-import { projects } from "@/db/schema";
+import { buildSessions, mediaAssets, multipartUploads, projects } from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
 import { redirectError, redirectSuccess } from "@/lib/forms";
 import { slugify } from "@/lib/labels";
+import { deleteObject, isStorageConfigured } from "@/lib/storage";
+import { abortMultipartUpload as abortR2Multipart } from "@/lib/storage-multipart";
 import {
   PLATFORMS,
   formatZodError,
@@ -126,8 +128,38 @@ export async function deleteProjectData(formData: FormData): Promise<void> {
   }
   const owner = await getOwner();
   const db = getDb();
+  const sessionRows = await db
+    .select({ id: buildSessions.id })
+    .from(buildSessions)
+    .where(and(eq(buildSessions.projectId, projectId), eq(buildSessions.userId, owner.id)));
+  const sessionIds = sessionRows.map((row) => row.id);
+
+  if (isStorageConfigured()) {
+    const [projectAssets, sessionAssets, uploads] = await Promise.all([
+      db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)),
+      sessionIds.length > 0
+        ? db.select().from(mediaAssets).where(inArray(mediaAssets.sessionId, sessionIds))
+        : Promise.resolve([]),
+      sessionIds.length > 0
+        ? db.select().from(multipartUploads).where(inArray(multipartUploads.sessionId, sessionIds))
+        : Promise.resolve([]),
+    ]);
+    const assets = [...new Map([...projectAssets, ...sessionAssets].map((asset) => [asset.id, asset])).values()];
+    for (const asset of assets) {
+      for (const key of [asset.storageKey, asset.thumbnailKey, asset.waveformKey].filter(
+        (value): value is string => Boolean(value),
+      )) {
+        await deleteObject(key).catch(() => undefined);
+      }
+    }
+    for (const upload of uploads) {
+      if (upload.status !== "uploading") continue;
+      await abortR2Multipart(upload.key, upload.uploadId).catch(() => undefined);
+    }
+  }
+
   await db
     .delete(projects)
     .where(and(eq(projects.id, projectId), eq(projects.userId, owner.id)));
-  redirect("/projects?message=Project%20and%20its%20sessions%20were%20deleted.");
+  redirect("/projects?message=Project%20and%20all%20related%20storage%20were%20deleted.");
 }

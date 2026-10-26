@@ -279,7 +279,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - AI prompts contain session and evidence text only. Media files are never sent to the model provider.
 - Uploads are private; reads require an authenticated session and return a short-lived signed URL.
 - Publishing media is exposed only through a short-lived, HMAC-signed handoff URL for HighLevel.
-- Deleting a project cascades sessions, evidence, drafts and feedback in Postgres. R2 objects must be deleted per asset.
+- Deleting a project cascades sessions, evidence, drafts, timelines and render jobs in Postgres, and removes its media, renders, thumbnails, waveforms and pending multipart uploads from R2. Deleting a timeline removes its rendered video but keeps raw recording tracks.
 - No automatic purge job. Delete data explicitly.
 
 ## Known limitations

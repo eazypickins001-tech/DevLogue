@@ -112,6 +112,9 @@ export default async function ProjectsPage({
                 <Link className={linkClass} href={`/sessions/new?projectId=${project.id}`}>
                   Capture session
                 </Link>
+                <Link className="text-sm font-medium text-rose-700 hover:text-rose-900" href={`/projects/${project.id}#delete`}>
+                  Delete
+                </Link>
               </div>
             </Card>
           ))}
