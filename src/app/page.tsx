@@ -96,7 +96,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between border-b border-slate-800 px-2 pb-3 text-xs text-slate-400">
               <span>Timeline preview</span>
               <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-300">
-                Worker ready
+                Worker on demand
               </span>
             </div>
             <div className="mt-4 space-y-3">

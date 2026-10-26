@@ -89,6 +89,7 @@ export function TimelineEditor({
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [savedVersion, setSavedVersion] = useState(version);
   const [dirty, setDirty] = useState(false);
   const timeRef = useRef(0);
@@ -100,6 +101,16 @@ export function TimelineEditor({
   useEffect(() => {
     timeRef.current = time;
   }, [time]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   useEffect(() => {
     if (!playing) return;
@@ -169,6 +180,9 @@ export function TimelineEditor({
     track.clips.map((clip) => ({ track, clip })),
   );
   const selected = allClips.find(({ clip }) => clip.id === selectedClipId) ?? null;
+  const failedAsset = previewError
+    ? [...assetMap.values()].find((asset) => asset.filename === previewError) ?? null
+    : null;
 
   function seek(next: number): void {
     const clamped = Math.min(duration, Math.max(0, next));
@@ -354,6 +368,10 @@ export function TimelineEditor({
                           muted
                           playsInline
                           preload="auto"
+                          onError={() => {
+                            if (active) setPreviewError(asset.filename);
+                          }}
+                          onLoadedData={() => setPreviewError(null)}
                           onLoadedMetadata={(event) => {
                             const target = clipTarget(clip, timeRef.current);
                             if (Number.isFinite(target)) event.currentTarget.currentTime = target;
@@ -402,6 +420,24 @@ export function TimelineEditor({
                     No visible clip at this time.
                   </div>
                 ) : null}
+                {previewError ? (
+                  <div className="absolute inset-0 z-30 grid place-items-center bg-slate-950/85 p-4 text-center">
+                    <div className="max-w-sm space-y-2">
+                      <p className="text-sm font-semibold text-white">Preview unavailable</p>
+                      <p className="text-xs text-slate-300">{previewError}</p>
+                      {failedAsset ? (
+                        <a
+                          className="inline-block text-xs font-medium text-indigo-300 hover:text-indigo-200"
+                          href={failedAsset.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open source media
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 {!playing ? (
                   <button
                     type="button"
@@ -435,6 +471,11 @@ export function TimelineEditor({
               </button>
               <span className="font-mono text-sm text-slate-700">
                 {formatDuration(time)} / {formatDuration(duration)}
+              </span>
+              <span className="text-xs text-slate-500">
+                {activeClips[0]
+                  ? `${activeClips[0].track.name}: ${activeClips[0].clip.label}`
+                  : "No active clip"}
               </span>
               <input
                 aria-label="Playhead"

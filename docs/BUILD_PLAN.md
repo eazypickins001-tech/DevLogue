@@ -53,13 +53,13 @@ Quality baseline:
 
 Goal: a user can always see both drafts and timelines in one place.
 
-- [ ] Add video timelines to `/studio` alongside text drafts.
-- [ ] Rename the destination to "Studio" in navigation and page copy.
-- [ ] Add status badges for timeline draft/rendered/failed and draft approval state.
+- [x] Add video timelines to `/studio` alongside text drafts.
+- [x] Rename the destination to "Studio" in navigation and page copy.
+- [x] Add status badges for timeline draft/rendered/failed and draft approval state.
 - [ ] Add a single primary action: Record or Open Video Editor.
-- [ ] Make "Create content draft" discoverable only after a successful render.
-- [ ] Add empty states that explain text drafts vs video drafts.
-- [ ] Reduce overlapping navigation labels: Build Sessions, Record, Video Editor, Content Studio, Video Production.
+- [x] Make "Create content draft" discoverable only after a successful render.
+- [x] Add empty states that explain text drafts vs video drafts.
+- [x] Reduce overlapping navigation labels: Build Sessions, Record, Video Editor, Content Studio, Video Production.
 - [ ] Add links between session, timeline, draft and publishing calendar.
 
 Acceptance:
@@ -76,7 +76,7 @@ Goal: production is not dependent on the user manually opening a terminal.
 - [x] Run `render-worker.mjs` and `worker-control.mjs` as services (PM2/systemd/Windows service).
 - [x] Expose the control service through an authenticated HTTPS endpoint.
 - [x] Set `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` in Vercel and local env.
-- [ ] Add real worker status to Dashboard, Video Editor and Studio.
+- [x] Add real worker status to Dashboard, Video Editor and Studio.
 - [ ] Add start/stop/restart controls with confirmation and audit text.
 - [x] Add worker log tail or last-error summary.
 - [x] Add queue counts by job type.
@@ -94,13 +94,13 @@ Acceptance:
 
 Goal: editing a video never looks like a blank screen.
 
-- [ ] Add a clear Play overlay and loading state.
+- [x] Add a clear Play overlay and loading state.
 - [ ] Add native source playback or a source preview panel.
-- [ ] Show current clip, selected track and playhead time.
-- [ ] Add poster fallback while thumbnails are missing.
+- [x] Show current clip, selected track and playhead time.
+- [x] Add poster fallback while thumbnails are missing.
 - [ ] Show a clear message when media is still processing.
-- [ ] Add preview error states with links to repair media.
-- [ ] Add autosave or a clear unsaved-changes warning.
+- [x] Add preview error states with links to repair media.
+- [x] Add autosave or a clear unsaved-changes warning.
 - [ ] Add optimistic concurrency/version conflict handling.
 - [ ] Add undo/redo persistence across refreshes.
 - [ ] Test Chrome/Edge/Firefox/Safari where feasible.
@@ -138,7 +138,7 @@ Goal: consistent UI that works on desktop and mobile.
 - [ ] Group tools: Create, Studio, Publish, Insights, Settings.
 - [ ] Improve forms, tables and timeline touch targets.
 - [ ] Add safe-area handling and mobile record flow.
-- [ ] Build-version the service worker or switch app chunks to network-first.
+- [x] Build-version the service worker or switch app chunks to network-first.
 - [ ] Add install prompt, offline page and update-available flow.
 - [ ] Add PWA tests on Android/iOS/desktop.
 - [ ] Add accessibility pass: focus, keyboard, contrast, reduced motion.
@@ -153,7 +153,7 @@ Acceptance:
 
 Goal: catch regressions before users do.
 
-- [ ] Add CI for lint, typecheck, tests and build.
+- [x] Add CI for lint, typecheck, tests and build.
 - [ ] Add Playwright E2E for record -> upload -> render -> draft -> publish.
 - [ ] Add multipart/resume E2E.
 - [ ] Add project/timeline deletion E2E with R2 assertions.
