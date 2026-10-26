@@ -2,16 +2,24 @@
 
 This is the permanent worker path: DevLogue on Vercel calls a token-protected control service on the Contabo VPS, and that service starts/stops the render/transcription worker.
 
+## Current Coolify deployment
+
+- Coolify host: `coolify.kiganza.online` on `178.18.246.145`. Note: `84.247.129.45` is a different VPS and does not host this app.
+- App: `devlogue-worker`, Dockerfile `/Dockerfile.worker`, internal port `4100`, health check `/health`.
+- Public URL: `https://worker.178.18.246.145.sslip.io` (sslip.io DNS). Move to `worker.kiganza.online` after adding a DNS record.
+- Coolify env: `DATABASE_URL`, `R2_*`, `WORKER_CONTROL_TOKEN`, `WORKER_CONTROL_AUTOSTART=true`, `WHISPER_MODEL=base.en`.
+- Vercel Production: `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` set. `/health` returns `200`; `/status` reports `running`.
+
 ## Prerequisites
 
-- SSH access to the VPS on a reachable port.
-- The DevLogue repository cloned or a deploy key for a private repository.
+- Access to the Coolify dashboard/API (preferred) or SSH to the VPS.
+- The DevLogue repository, or a deploy key for a private repository.
 - A MySQL/Neon `DATABASE_URL` and the R2 credentials.
-- A public HTTPS hostname for the control service, normally through a Cloudflare Tunnel.
+- A public HTTPS hostname for the control service.
 
-The VPS currently has ports 80 and 443 open, but port 22 and common alternate SSH ports were closed from the deployment machine. Open SSH access or run the bootstrap from the Contabo web console.
+The current VPS exposes 80/443 through Coolify Traefik. SSH 22 and common alternate ports are closed from the deployment machine, so Coolify is the primary deployment path.
 
-## Bootstrap
+## Bootstrap (systemd fallback)
 
 On the VPS:
 
@@ -54,12 +62,12 @@ curl http://127.0.0.1:4100/health
 
 ## Expose it safely
 
-The control service must not be exposed as plain HTTP. Use a Cloudflare Tunnel with a hostname such as `worker.dominixai.com` and an origin of `http://127.0.0.1:4100`.
+Do not publish port `4100` directly. The current deployment uses Coolify Traefik with an `sslip.io` hostname and a valid HTTPS certificate. A Cloudflare Tunnel is optional for a stable custom hostname.
 
-Create the tunnel/token in Cloudflare, install `cloudflared` on the VPS, and run the tunnel as a service. Then set in Vercel Production:
+For a custom domain, point a DNS record at the Coolify host and set the Coolify app FQDN to `https://worker.kiganza.online`. Then set in Vercel Production:
 
 ```dotenv
-WORKER_CONTROL_URL=https://worker.dominixai.com
+WORKER_CONTROL_URL=https://worker.178.18.246.145.sslip.io
 WORKER_CONTROL_TOKEN=a-long-random-token
 ```
 
@@ -67,7 +75,7 @@ Redeploy the app. The Video Production page should show the worker as configured
 
 ## Security
 
-- Keep `WORKER_CONTROL_HOST=127.0.0.1`.
+- Keep the control service bound inside the container; publish it only through Traefik or a tunnel.
 - Use a long random token.
 - Do not put the token in client code or Git.
 - Restrict the tunnel hostname if Cloudflare Access is available.
@@ -76,7 +84,7 @@ Redeploy the app. The Video Production page should show the worker as configured
 ## Verification
 
 ```bash
-curl -H "Authorization: Bearer $WORKER_CONTROL_TOKEN" https://worker.dominixai.com/status
+curl -H "Authorization: Bearer $WORKER_CONTROL_TOKEN" https://worker.178.18.246.145.sslip.io/status
 ```
 
 Then in DevLogue:

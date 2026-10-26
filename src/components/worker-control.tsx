@@ -57,7 +57,13 @@ export function WorkerControl() {
   async function stop() {
     setBusy("stop");
     try {
-      setStatus(await stopWorker());
+      let next = await stopWorker();
+      setStatus(next);
+      for (let attempt = 0; attempt < 5 && next.running; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        next = await getWorkerStatus();
+        setStatus(next);
+      }
     } finally {
       setBusy(null);
     }

@@ -72,14 +72,14 @@ Acceptance:
 
 Goal: production is not dependent on the user manually opening a terminal.
 
-- [ ] Choose worker host: Contabo VPS or always-on PC.
-- [ ] Run `render-worker.mjs` and `worker-control.mjs` as services (PM2/systemd/Windows service).
-- [ ] Expose the control service through an authenticated HTTPS endpoint.
-- [ ] Set `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` in Vercel and local env.
+- [x] Choose worker host: Contabo VPS or always-on PC.
+- [x] Run `render-worker.mjs` and `worker-control.mjs` as services (PM2/systemd/Windows service).
+- [x] Expose the control service through an authenticated HTTPS endpoint.
+- [x] Set `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` in Vercel and local env.
 - [ ] Add real worker status to Dashboard, Video Editor and Studio.
 - [ ] Add start/stop/restart controls with confirmation and audit text.
-- [ ] Add worker log tail or last-error summary.
-- [ ] Add queue counts by job type.
+- [x] Add worker log tail or last-error summary.
+- [x] Add queue counts by job type.
 - [ ] Add retry/cancel for failed jobs.
 - [ ] Add stale-job recovery and concurrency limits.
 - [ ] Verify a 10-15 minute recording end-to-end in production.

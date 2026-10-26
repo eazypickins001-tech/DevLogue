@@ -25,3 +25,4 @@ Thumbs.db
 .worker-tmp/
 tools/
 /contabo ssh.txt
+.worker-control-token
