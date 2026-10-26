@@ -5,6 +5,8 @@ import { getOwner } from "@/lib/auth";
 import { getDashboardData } from "@/lib/queries";
 import { DRAFT_STATUS_LABELS, SESSION_STATUS_LABELS, formatDate, formatDateTime } from "@/lib/labels";
 import { CONTENT_FORMATS, type ContentFormatValue } from "@/lib/domain/content";
+import { getWorkerSnapshot } from "@/lib/worker-status";
+import { WorkerStatusPill } from "@/components/worker-status-pill";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +38,7 @@ export default async function DashboardPage({
   }
 
   const owner = await getOwner();
-  const data = await getDashboardData(owner.id);
+  const [data, worker] = await Promise.all([getDashboardData(owner.id), getWorkerSnapshot()]);
 
   return (
     <div className="space-y-6">
@@ -45,6 +47,7 @@ export default async function DashboardPage({
         description="What you built, what is ready, what needs review, what is scheduled, and what is next."
         actions={
           <>
+            <WorkerStatusPill snapshot={worker} />
             <Link href="/sessions/new" className={buttonPrimary}>
               Capture session
             </Link>

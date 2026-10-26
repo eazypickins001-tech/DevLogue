@@ -12,6 +12,8 @@ import {
   linkClass,
 } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
+import { getWorkerSnapshot } from "@/lib/worker-status";
+import { WorkerStatusPill } from "@/components/worker-status-pill";
 import { listDrafts, listTimelines } from "@/lib/queries";
 import { DRAFT_STATUS_LABELS, truncate, formatDate } from "@/lib/labels";
 import { CONTENT_FORMATS, CONTENT_FORMAT_VALUES, type ContentFormatValue } from "@/lib/domain/content";
@@ -40,9 +42,10 @@ export default async function StudioPage({
   }
 
   const owner = await getOwner();
-  const [rows, timelines] = await Promise.all([
+  const [rows, timelines, worker] = await Promise.all([
     listDrafts(owner.id, { status, format }),
     listTimelines(owner.id),
+    getWorkerSnapshot(),
   ]);
   const activeStatus = STATUSES.includes(status as (typeof STATUSES)[number]) ? status : undefined;
   const activeFormat = CONTENT_FORMAT_VALUES.includes(format as ContentFormatValue)
@@ -54,6 +57,7 @@ export default async function StudioPage({
       <PageHeader
         title="Studio"
         description="Drafts and video timelines in one place. AI output, your edits and the approved version stay separate."
+        actions={<WorkerStatusPill snapshot={worker} />}
       />
       <Card>
         <CardHeader

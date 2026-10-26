@@ -3,6 +3,7 @@ import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, buttonSecondary, linkClass } from "@/components/ui";
 import { createTimelineDraft } from "@/app/actions/recordings";
+import { retryFailedJobs } from "@/app/actions/worker";
 import { getOwner } from "@/lib/auth";
 import {
   getWorkerQueueSummary,
@@ -37,6 +38,7 @@ export default async function VideoPage() {
     listTimelines(owner.id),
   ]);
   const renderedTimelines = timelines.filter((row) => row.renderMediaId);
+  const failedCount = Object.values(queue).reduce((total, counts) => total + (counts.failed ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -75,6 +77,15 @@ export default async function VideoPage() {
         <CardHeader
           title="Queue"
           description="Queued and running work across previews, transcription and rendering."
+          action={
+            failedCount > 0 ? (
+              <form action={retryFailedJobs}>
+                <button type="submit" className={buttonSecondary}>
+                  Retry {failedCount} failed job{failedCount === 1 ? "" : "s"}
+                </button>
+              </form>
+            ) : undefined
+          }
         />
         <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
           {[

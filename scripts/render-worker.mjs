@@ -663,6 +663,16 @@ async function failTranscriptionJob(sql, job, error) {
   if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
 }
 
+async function recoverInterruptedJobs(sql) {
+  const results = await Promise.all([
+    sql`update media_derivative_jobs set status = 'queued', updated_at = now() where status = 'running' returning id`,
+    sql`update transcription_jobs set status = 'queued', updated_at = now() where status = 'running' returning id`,
+    sql`update timeline_render_jobs set status = 'queued', updated_at = now() where status = 'running' returning id`,
+    sql`update render_jobs set status = 'queued', updated_at = now() where status = 'running' returning id`,
+  ]);
+  return results.reduce((total, rows) => total + rows.length, 0);
+}
+
 async function main() {
   loadEnv();
   const sql = neon(required("DATABASE_URL"));
@@ -670,8 +680,11 @@ async function main() {
   console.log(`worker: ffmpeg=${ffmpeg}`);
   console.log(`worker: whisper=${resolveWhisper() ? "ready" : "disabled"}`);
   console.log(`worker: polling ${once ? "once" : "every 10s"}`);
+  const recovered = await recoverInterruptedJobs(sql);
+  if (recovered > 0) console.log(`worker: requeued ${recovered} interrupted job(s)`);
 
   do {
+    try {
     const derivativeJob = await claimDerivativeJob(sql);
     if (derivativeJob) {
       try {
@@ -713,6 +726,12 @@ async function main() {
       console.log("worker: no queued jobs");
     }
     if (!once) await new Promise((resolvePromise) => setTimeout(resolvePromise, 10_000));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`worker: transient error: ${message}`);
+      if (once) throw error;
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 10_000));
+    }
   } while (!once);
 }
 

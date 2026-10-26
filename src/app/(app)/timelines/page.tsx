@@ -3,6 +3,8 @@ import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, PageHeader, SetupNotice, linkClass } from "@/components/ui";
 import { getOwner, requireSession } from "@/lib/auth";
+import { getWorkerSnapshot } from "@/lib/worker-status";
+import { WorkerStatusPill } from "@/components/worker-status-pill";
 import { listTimelines } from "@/lib/queries";
 import { formatDate } from "@/lib/labels";
 import { formatDuration } from "@/lib/recording/types";
@@ -25,7 +27,7 @@ export default async function TimelinesPage() {
   }
 
   const owner = await getOwner();
-  const rows = await listTimelines(owner.id);
+  const [rows, worker] = await Promise.all([listTimelines(owner.id), getWorkerSnapshot()]);
 
   return (
     <div className="space-y-6">
@@ -33,9 +35,12 @@ export default async function TimelinesPage() {
         title="Video Editor"
         description="Recordings become editable multi-track timelines. Camera overlay visibility and 16:9/9:16 framing stay editable."
         actions={
-          <Link className={linkClass} href="/record">
-            Record a session
-          </Link>
+          <>
+            <WorkerStatusPill snapshot={worker} />
+            <Link className={linkClass} href="/record">
+              Record a session
+            </Link>
+          </>
         }
       />
       {rows.length === 0 ? (
