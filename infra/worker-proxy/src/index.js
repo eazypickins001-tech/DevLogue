@@ -1,4 +1,4 @@
-const ALLOWED_PATHS = new Set(["/health", "/status", "/log", "/start", "/stop"]);
+const ALLOWED_PATHS = new Set(["/health", "/status", "/log", "/diag", "/start", "/stop"]);
 
 const worker = {
   async fetch(request, env) {

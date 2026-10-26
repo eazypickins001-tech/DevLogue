@@ -1,8 +1,12 @@
 import { spawn } from "node:child_process";
+import dns from "node:dns";
 import { createServer } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, openSync, closeSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { neon } from "@neondatabase/serverless";
+
+dns.setDefaultResultOrder("ipv4first");
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const port = Number(process.env.WORKER_CONTROL_PORT || 4100);
@@ -35,6 +39,28 @@ function status() {
     lastExit,
     log: logPath,
   };
+}
+
+async function databaseDiagnostic() {
+  const startedAt = Date.now();
+  try {
+    const sql = neon(process.env.DATABASE_URL);
+    const rows = await sql`select now() as now`;
+    return { ok: true, ms: Date.now() - startedAt, now: rows[0]?.now ?? null };
+  } catch (error) {
+    const cause = error && typeof error === "object" ? error.cause : null;
+    return {
+      ok: false,
+      ms: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+      cause:
+        cause && typeof cause === "object" && "code" in cause
+          ? String(cause.code)
+          : cause
+            ? String(cause)
+            : null,
+    };
+  }
 }
 
 function logTail(lineCount = 200) {
@@ -112,6 +138,12 @@ const server = createServer((request, response) => {
   }
   if (request.method === "GET" && request.url === "/log") {
     response.end(JSON.stringify({ ok: true, log: logTail() }));
+    return;
+  }
+  if (request.method === "GET" && request.url === "/diag") {
+    void databaseDiagnostic().then((result) => {
+      response.end(JSON.stringify(result));
+    });
     return;
   }
   if (request.method === "POST" && request.url === "/start") {

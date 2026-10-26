@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import dns from "node:dns";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,8 @@ import {
   sceneInputArgs,
 } from "./render-plan.mjs";
 import { buildTimelineArgs, prepareTimelineTextFiles } from "./timeline-plan.mjs";
+
+dns.setDefaultResultOrder("ipv4first");
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const once = process.argv.includes("--once");
