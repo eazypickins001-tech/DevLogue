@@ -58,11 +58,14 @@ function startWorker() {
 
 function stopWorker() {
   if (!child || child.exitCode !== null) return { ok: true, alreadyRunning: false, ...status() };
-  const pid = child.pid;
-  child.kill("SIGTERM");
-  setTimeout(() => {
-    if (child && child.exitCode === null) child.kill("SIGKILL");
-  }, 5000).unref();
+  const target = child;
+  const pid = target.pid;
+  const killTimer = setTimeout(() => {
+    if (target.exitCode === null) target.kill("SIGKILL");
+  }, 5000);
+  killTimer.unref();
+  target.once("exit", () => clearTimeout(killTimer));
+  target.kill("SIGTERM");
   return { ok: true, stopping: true, pid, ...status() };
 }
 
