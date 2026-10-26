@@ -176,7 +176,7 @@ export default async function SettingsPage() {
                 </p>
                 <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
                   {storage.byProject.map((project) => (
-                    <li key={project.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <li key={project.id ?? "unassigned"} className="flex items-center justify-between gap-3 px-3 py-2">
                       <span className="truncate text-slate-800">{project.name}</span>
                       <span className="shrink-0 text-xs text-slate-500">
                         {formatBytes(project.bytes)} - {project.count} asset

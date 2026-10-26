@@ -244,7 +244,7 @@ export type StorageSummary = {
   totalBytes: number;
   assetCount: number;
   byKind: { kind: string; bytes: number; count: number }[];
-  byProject: { id: string; name: string; bytes: number; count: number }[];
+  byProject: { id: string | null; name: string; bytes: number; count: number }[];
 };
 
 export async function getStorageSummary(userId: string): Promise<StorageSummary> {
@@ -259,9 +259,14 @@ export async function getStorageSummary(userId: string): Promise<StorageSummary>
       .groupBy(mediaAssets.kind)
       .orderBy(desc(bytes)),
     db
-      .select({ id: projects.id, name: projects.name, bytes, count })
+      .select({
+        id: projects.id,
+        name: sql<string>`coalesce(${projects.name}, 'Unassigned')`,
+        bytes,
+        count,
+      })
       .from(mediaAssets)
-      .innerJoin(projects, eq(mediaAssets.projectId, projects.id))
+      .leftJoin(projects, eq(mediaAssets.projectId, projects.id))
       .where(eq(mediaAssets.userId, userId))
       .groupBy(projects.id, projects.name)
       .orderBy(desc(bytes))
