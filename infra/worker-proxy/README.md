@@ -4,7 +4,7 @@ Cloudflare Worker that exposes the Contabo worker control service at a stable HT
 
 - Public hostname: `https://worker.kiganza.online`
 - Origin: `https://worker.178.18.246.145.sslip.io`
-- Allowed paths: `/health`, `/status`, `/start`, `/stop`
+- Allowed paths: `/health`, `/status`, `/log`, `/start`, `/stop`
 
 Deploy from the repository root:
 

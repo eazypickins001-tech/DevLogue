@@ -277,7 +277,7 @@ pnpm worker`}</code></pre>
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900">What is the difference between Studio and the Video Editor?</h3>
-                <p className="mt-1">Studio lists text drafts, storyboards and video timelines. The Video Editor opens a timeline for trimming, captions, sync, preview and rendering.</p>
+                <p className="mt-1">Studio lists text drafts, storyboards and video timelines. Rendered timelines show their preview thumbnail and a Create draft button. The Video Editor opens a timeline for trimming, captions, sync, preview and rendering.</p>
               </div>
             </div>
           </Card>

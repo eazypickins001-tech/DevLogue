@@ -8,7 +8,7 @@ This is the permanent worker path: DevLogue on Vercel calls a token-protected co
 - App: `devlogue-worker`, Dockerfile `/Dockerfile.worker`, internal port `4100`, health check `/health`.
 - Origin URL: `https://worker.178.18.246.145.sslip.io` (Coolify/Let's Encrypt).
 - Public URL: `https://worker.kiganza.online`, served by the Cloudflare Worker proxy in `infra/worker-proxy`.
-- Coolify env: `DATABASE_URL`, `R2_*`, `WORKER_CONTROL_TOKEN`, `WORKER_CONTROL_AUTOSTART=true`, `WHISPER_MODEL=base.en`.
+- Coolify env: `DATABASE_URL`, `R2_*`, `WORKER_CONTROL_TOKEN`, `WORKER_CONTROL_AUTOSTART=true`, `WHISPER_MODEL=base.en`. The control service restarts the worker after an unexpected exit.
 - Vercel Production: `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` set. `/health` returns `200`; `/status` reports `running`.
 
 ## Prerequisites
@@ -69,7 +69,7 @@ Do not publish port `4100` directly. Coolify Traefik serves the origin at `https
 npx wrangler deploy --config infra/worker-proxy/wrangler.toml
 ```
 
-The proxy allows only `/health`, `/status`, `/start` and `/stop`; `/health` is public, the other paths require the bearer token. It forwards to the origin and does not store the token.
+The proxy allows only `/health`, `/status`, `/log`, `/start` and `/stop`; `/health` is public, the other paths require the bearer token. It forwards to the origin and does not store the token.
 
 Then set in Vercel Production:
 
