@@ -13,6 +13,8 @@ import {
 } from "@/components/ui";
 import { createTimelineDraft, deleteTimeline } from "@/app/actions/recordings";
 import { getOwner, requireSession } from "@/lib/auth";
+import { getWorkerSnapshot } from "@/lib/worker-status";
+import { WorkerStatusPill } from "@/components/worker-status-pill";
 import { ensureDerivativeJobsForRecording } from "@/lib/services/derivatives";
 import {
   getTimelineDetail,
@@ -34,6 +36,7 @@ export default async function TimelinePage({
   const { error, message } = await searchParams;
   await requireSession();
   const owner = await getOwner();
+  const worker = await getWorkerSnapshot();
   const detail = await getTimelineDetail(owner.id, id);
   if (!detail) notFound();
   if (detail.recording) await ensureDerivativeJobsForRecording(detail.recording.id);
@@ -59,6 +62,7 @@ export default async function TimelinePage({
         description={`${project.name}${session ? ` - ${session.title}` : ""}`}
         actions={
           <>
+            <WorkerStatusPill snapshot={worker} />
             <Badge tone="neutral">v{timeline.version}</Badge>
             {recording ? <Badge tone="info">{recording.source}</Badge> : null}
             {session ? (
