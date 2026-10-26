@@ -43,6 +43,13 @@
       "when": 1792964791796,
       "tag": "0005_lush_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792975225428,
+      "tag": "0006_jittery_raza",
+      "breakpoints": true
     }
   ]
 }

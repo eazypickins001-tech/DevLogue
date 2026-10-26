@@ -12,7 +12,7 @@ test-results/
 playwright-report/
 coverage/
 .local-media/
-media/
+/media/
 .DS_Store
 Thumbs.db
 *.log

@@ -4,6 +4,7 @@ import { TimelineEditor } from "@/components/timeline/timeline-editor";
 import { Badge, Card, CardHeader, FormMessage, PageHeader, linkClass } from "@/components/ui";
 import { createTimelineDraft } from "@/app/actions/recordings";
 import { getOwner, requireSession } from "@/lib/auth";
+import { ensureDerivativeJobsForRecording } from "@/lib/services/derivatives";
 import {
   getTimelineDetail,
   getTimelineTranscription,
@@ -26,6 +27,7 @@ export default async function TimelinePage({
   const owner = await getOwner();
   const detail = await getTimelineDetail(owner.id, id);
   if (!detail) notFound();
+  if (detail.recording) await ensureDerivativeJobsForRecording(detail.recording.id);
   const renderJobs = await listTimelineRenderJobs(id);
 
   const { timeline, project, session, recording, assets } = detail;
@@ -37,6 +39,8 @@ export default async function TimelinePage({
     kind: asset.kind,
     contentType: asset.contentType,
     url: `/api/media/${asset.id}`,
+    thumbnailUrl: asset.thumbnailKey ? `/api/media/${asset.id}/thumbnail` : null,
+    waveformUrl: asset.waveformKey ? `/api/media/${asset.id}/waveform` : null,
   }));
 
   return (

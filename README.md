@@ -10,7 +10,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Build-session capture: manual notes plus structured evidence (commits, PRs, releases, issues, notes).
 - Private media uploads to Cloudflare R2 with presigned PUT, multipart uploads for files above 16MB, per-part retry/progress, resume-after-reload, size/type validation, magic-byte checks and signed reads.
 - Screen/camera recording: raw screen, camera, microphone and system-audio tracks; camera PiP can be off, recorded-only or visible; 16:9/9:16; saves to a session and creates an editable timeline.
-- Timeline v1: multi-track preview, trim/timing inspector, camera/audio sync-offset nudges, source trim, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
+- Timeline v1: multi-track preview, video thumbnails, audio waveforms, trim/timing inspector, camera/audio sync-offset nudges, source trim, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
 - Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
 - Transcript-driven captions: saving a recording queues microphone and system-audio transcription, the worker stores timestamped Whisper segments, and the editor turns the preferred transcript into timed text clips.
 - Timeline-to-publishing handoff: a rendered timeline can create a short-video content draft; publishing that draft uploads only the rendered MP4, not the raw screen/camera tracks.
@@ -230,6 +230,7 @@ How it works:
 5. The draft page and Video page show job status, errors and the rendered file link.
 6. Timeline jobs use the same worker: it downloads the recording tracks, composites the main video and camera overlay, burns captions, mixes microphone/system audio, validates with ffprobe, uploads the MP4 to R2 and stores it as a media asset. The timeline page shows the queue and rendered file.
 7. Saving a recording queues transcription for its microphone and system-audio tracks. The worker transcribes both; the timeline prefers the microphone transcript and falls back to system audio. The editor then generates timed captions from the stored segments.
+8. Media derivative jobs generate a JPEG thumbnail for video and a PNG waveform for audio/video. Timeline clips use them as preview backgrounds; existing recording assets are backfilled when a timeline is opened.
 
 Whisper (`faster-whisper`, `base.en` by default) transcribes uploaded video/audio once per asset and stores timestamped segments. It skips worker-generated renders, and silence is not stored as a transcript. `av==18.1.0` is pinned in `scripts/requirements-worker.txt` because faster-whisper 1.2.1 is incompatible with PyAV 19.
 
@@ -284,7 +285,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 ## Known limitations
 
 - **Video rendering is local-only.** The worker needs FFmpeg and faster-whisper installed on the machine running it. Production can queue jobs but cannot render them. Storyboard renders use silent audio with on-screen narration; timeline renders mix the recorded microphone/system tracks. There is no TTS or voice-over generation yet.
-- **Timeline rendering and transcription are local-only.** Final MP4s and Whisper transcripts queue in Postgres and are produced by `pnpm worker`; Vercel can save and queue them but cannot process them.
+- **Timeline rendering, transcription, thumbnails and waveforms are local-only.** These jobs queue in Postgres and are produced by `pnpm worker`; Vercel can save and queue them but cannot process them.
 - **Caption generation is manual and one-shot.** It replaces clips labeled `Auto caption` when regenerated; manually edited captions keep their own labels.
 - **Large recordings use multipart uploads.** Files above 16MB split into 16MB parts with concurrency, per-part retry and progress. Interrupted uploads can be resumed from the session Media card by selecting the same file again; each track must remain under the 512MB video limit.
 - **Camera/audio sync is manual.** Tracks start together, but drift or device latency can be corrected with the inspector's +/-100ms and +/-500ms nudges, a numeric offset, and source trim. There is no automatic audio/video alignment yet.

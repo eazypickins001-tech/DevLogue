@@ -31,6 +31,8 @@ type EditorAsset = {
   kind: string;
   contentType: string;
   url: string;
+  thumbnailUrl: string | null;
+  waveformUrl: string | null;
 };
 
 type TranscriptionState = {
@@ -498,32 +500,45 @@ export function TimelineEditor({
                         seek(((event.clientX - rect.left) / rect.width) * duration);
                       }}
                     >
-                      {track.clips.map((clip) => (
-                        <button
-                          key={clip.id}
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedClipId(clip.id);
-                            seek(clip.startSec);
-                          }}
-                          className={`absolute top-1.5 h-9 overflow-hidden rounded-md px-2 text-left text-[11px] font-medium text-white shadow-sm ${
-                            selectedClipId === clip.id
-                              ? "bg-indigo-700 ring-2 ring-indigo-300"
-                              : track.kind === "audio"
-                                ? "bg-emerald-700"
-                                : track.kind === "text"
-                                  ? "bg-amber-600"
-                                  : "bg-slate-700"
-                          }`}
-                          style={{
-                            left: `${(clip.startSec / duration) * 100}%`,
-                            width: `${(Math.min(clip.durationSec, duration - clip.startSec) / duration) * 100}%`,
-                          }}
-                        >
-                          {clip.label}
-                        </button>
-                      ))}
+                      {track.clips.map((clip) => {
+                        const asset = clip.assetId ? assetMap.get(clip.assetId) : null;
+                        const mediaBackground =
+                          track.kind === "audio" ? asset?.waveformUrl : asset?.thumbnailUrl;
+                        const backgroundImage = mediaBackground
+                          ? track.kind === "audio"
+                            ? `url("${mediaBackground}")`
+                            : `linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.55)), url("${mediaBackground}")`
+                          : undefined;
+                        return (
+                          <button
+                            key={clip.id}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedClipId(clip.id);
+                              seek(clip.startSec);
+                            }}
+                            className={`absolute top-1.5 h-9 overflow-hidden rounded-md px-2 text-left text-[11px] font-medium text-white shadow-sm ${
+                              selectedClipId === clip.id
+                                ? "bg-indigo-700 ring-2 ring-indigo-300"
+                                : track.kind === "audio"
+                                  ? "bg-emerald-700"
+                                  : track.kind === "text"
+                                    ? "bg-amber-600"
+                                    : "bg-slate-700"
+                            }`}
+                            style={{
+                              left: `${(clip.startSec / duration) * 100}%`,
+                              width: `${(Math.min(clip.durationSec, duration - clip.startSec) / duration) * 100}%`,
+                              backgroundImage,
+                              backgroundSize: track.kind === "audio" ? "100% 100%" : "cover",
+                              backgroundPosition: "center",
+                            }}
+                          >
+                            <span className="relative z-10 drop-shadow-sm">{clip.label}</span>
+                          </button>
+                        );
+                      })}
                       <div
                         className="pointer-events-none absolute bottom-0 top-0 w-px bg-rose-500"
                         style={{ left: `${(time / duration) * 100}%` }}

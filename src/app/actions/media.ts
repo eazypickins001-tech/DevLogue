@@ -2,7 +2,12 @@
 
 import { and, eq } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/db";
-import { buildSessions, mediaAssets, multipartUploads } from "@/db/schema";
+import {
+  buildSessions,
+  mediaAssets,
+  mediaDerivativeJobs,
+  multipartUploads,
+} from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
 import { redirectError, redirectSuccess } from "@/lib/forms";
 import {
@@ -284,7 +289,13 @@ async function registerUploadedAsset(input: AssetRegistration): Promise<Complete
           : null,
     })
     .returning({ id: mediaAssets.id });
-  return { ok: true, assetId: inserted[0].id };
+  const assetId = inserted[0].id;
+  if (validation.kind === "video" || validation.kind === "audio") {
+    await getDb()
+      .insert(mediaDerivativeJobs)
+      .values({ mediaAssetId: assetId, status: "queued" });
+  }
+  return { ok: true, assetId };
 }
 
 export async function completeUpload(input: {
@@ -444,10 +455,12 @@ export async function deleteMedia(formData: FormData): Promise<void> {
   if (!asset) redirectError("/sessions", "Media asset not found.");
 
   if (isStorageConfigured()) {
-    try {
-      await deleteObject(asset.storageKey);
-    } catch {
-      // Deleting the database row still removes access; surface the storage failure below.
+    for (const key of [asset.storageKey, asset.thumbnailKey, asset.waveformKey].filter((key): key is string => Boolean(key))) {
+      try {
+        await deleteObject(key);
+      } catch {
+        // Deleting the database row still removes access; surface the storage failure below.
+      }
     }
   }
   await db.delete(mediaAssets).where(eq(mediaAssets.id, mediaId));

@@ -330,6 +330,8 @@ export const mediaAssets = pgTable(
     width: integer("width"),
     height: integer("height"),
     notes: text("notes"),
+    thumbnailKey: text("thumbnail_key"),
+    waveformKey: text("waveform_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -365,6 +367,25 @@ export const multipartUploads = pgTable(
     uniqueIndex("multipart_uploads_key_unique").on(table.key),
     index("multipart_uploads_user_idx").on(table.userId),
     index("multipart_uploads_session_idx").on(table.sessionId),
+  ],
+);
+
+export const mediaDerivativeJobs = pgTable(
+  "media_derivative_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mediaAssetId: uuid("media_asset_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "cascade" }),
+    status: renderStatus("status").notNull().default("queued"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("media_derivative_jobs_media_idx").on(table.mediaAssetId, table.createdAt),
+    index("media_derivative_jobs_status_idx").on(table.status, table.createdAt),
   ],
 );
 

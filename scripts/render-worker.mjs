@@ -409,6 +409,10 @@ async function processTimelineJob(job) {
     )
     returning id
   `;
+  await sql`
+    insert into media_derivative_jobs (media_asset_id, status)
+    values (${media[0].id}, 'queued')
+  `;
 
   await sql`
     update timeline_projects set status = 'rendered', updated_at = now()
@@ -447,6 +451,99 @@ async function processTranscriptionJob(job) {
     where id = ${job.id}
   `;
   console.log(`transcription: succeeded ${asset.filename}`);
+  rmSync(workDir, { recursive: true, force: true });
+}
+
+async function processDerivativeJob(job) {
+  const sql = neon(required("DATABASE_URL"));
+  const { client, base } = r2Config();
+  const { ffmpeg } = resolveFfmpeg();
+  const workDir = join(root, ".worker-tmp", job.id);
+  mkdirSync(workDir, { recursive: true });
+
+  const rows = await sql`select * from media_assets where id = ${job.media_asset_id}`;
+  const asset = rows[0];
+  if (!asset) throw new Error("Media asset not found.");
+  const extension = extname(asset.filename) || (asset.kind === "audio" ? ".audio" : ".mp4");
+  const source = join(workDir, `source${extension}`);
+  await downloadAsset(client, base, asset.storage_key, source);
+
+  let thumbnailKey = null;
+  let waveformKey = null;
+
+  if (asset.kind === "video") {
+    const thumbnail = join(workDir, "thumbnail.jpg");
+    const makeThumbnail = (seek) =>
+      run(ffmpeg, [
+        "-y",
+        "-ss",
+        String(seek),
+        "-i",
+        source,
+        "-frames:v",
+        "1",
+        "-vf",
+        "scale=320:-2",
+        "-q:v",
+        "4",
+        thumbnail,
+      ]);
+    try {
+      await makeThumbnail(1);
+    } catch {
+      await makeThumbnail(0);
+    }
+    if (!existsSync(thumbnail) || statSync(thumbnail).size === 0) {
+      await makeThumbnail(0);
+    }
+    if (existsSync(thumbnail) && statSync(thumbnail).size > 0) {
+      thumbnailKey = `derivatives/${asset.user_id}/${asset.id}/thumbnail.jpg`;
+      await uploadAsset(client, base, thumbnailKey, thumbnail, "image/jpeg");
+    }
+  }
+
+  if (asset.kind === "video" || asset.kind === "audio") {
+    const waveform = join(workDir, "waveform.png");
+    try {
+      await run(ffmpeg, [
+        "-y",
+        "-i",
+        source,
+        "-filter_complex",
+        "[0:a]aformat=channel_layouts=mono,showwavespic=s=640x120:colors=0x94A3B8[wave]",
+        "-map",
+        "[wave]",
+        "-frames:v",
+        "1",
+        waveform,
+      ]);
+      if (existsSync(waveform) && statSync(waveform).size > 0) {
+        waveformKey = `derivatives/${asset.user_id}/${asset.id}/waveform.png`;
+        await uploadAsset(client, base, waveformKey, waveform, "image/png");
+      }
+    } catch {
+      console.log(`derivatives: no audio waveform for ${asset.filename}`);
+    }
+  }
+
+  if (!thumbnailKey && !waveformKey) {
+    throw new Error("No derivative could be generated for this asset.");
+  }
+
+  await sql`
+    update media_assets
+    set thumbnail_key = coalesce(${thumbnailKey}, thumbnail_key),
+        waveform_key = coalesce(${waveformKey}, waveform_key)
+    where id = ${asset.id}
+  `;
+  await sql`
+    update media_derivative_jobs
+    set status = 'succeeded', error = null, updated_at = now()
+    where id = ${job.id}
+  `;
+  console.log(
+    `derivatives: ${asset.filename} thumbnail=${Boolean(thumbnailKey)} waveform=${Boolean(waveformKey)}`,
+  );
   rmSync(workDir, { recursive: true, force: true });
 }
 
@@ -507,6 +604,34 @@ async function failTimelineJob(sql, job, error) {
   if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
 }
 
+async function claimDerivativeJob(sql) {
+  const rows = await sql`
+    update media_derivative_jobs
+    set status = 'running', attempts = attempts + 1, updated_at = now()
+    where id = (
+      select id from media_derivative_jobs
+      where status = 'queued'
+      order by created_at
+      limit 1
+      for update skip locked
+    )
+    returning *
+  `;
+  return rows[0] ?? null;
+}
+
+async function failDerivativeJob(sql, job, error) {
+  const message = error instanceof Error ? error.message : String(error);
+  await sql`
+    update media_derivative_jobs
+    set status = 'failed', error = ${message.slice(0, 2000)}, updated_at = now()
+    where id = ${job.id}
+  `;
+  console.log(`derivatives: failed ${job.id}: ${message}`);
+  const workDir = join(root, ".worker-tmp", job.id);
+  if (existsSync(workDir)) rmSync(workDir, { recursive: true, force: true });
+}
+
 async function claimTranscriptionJob(sql) {
   const rows = await sql`
     update transcription_jobs
@@ -544,6 +669,16 @@ async function main() {
   console.log(`worker: polling ${once ? "once" : "every 10s"}`);
 
   do {
+    const derivativeJob = await claimDerivativeJob(sql);
+    if (derivativeJob) {
+      try {
+        await processDerivativeJob(derivativeJob);
+      } catch (error) {
+        await failDerivativeJob(sql, derivativeJob, error);
+      }
+      continue;
+    }
+
     const transcriptionJob = await claimTranscriptionJob(sql);
     if (transcriptionJob) {
       try {
