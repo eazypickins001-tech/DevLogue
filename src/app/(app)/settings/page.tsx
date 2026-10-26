@@ -18,10 +18,10 @@ const PHASES = [
       "Provider abstraction, validated session analysis, on-demand content, storyboards, versioning, approval, deterministic quality checks.",
   },
   {
-    name: "Phase 3 — Video workflow",
-    status: "Partial",
+    name: "Phase 3 - Video workflow",
+    status: "Done",
     detail:
-      "Storyboards and scene-to-asset mapping work. Local FFmpeg/Whisper render worker is scaffolded but not installed.",
+      "Recording, multi-track timeline, captions, previews, sync offsets, local rendering and timeline-to-draft publishing.",
   },
   {
     name: "Phase 4 — Publishing",
@@ -116,9 +116,7 @@ export default function SettingsPage() {
             through short-lived signed URLs after an auth check.
           </p>
           <p>
-            There is no automatic purge. Delete media from a session, delete a project, or remove rows
-            directly. Deleting a project cascades sessions, evidence, drafts and feedback in the
-            database; storage objects must be deleted per asset.
+            There is no automatic purge. Delete individual media from a session, delete a timeline to remove its rendered video, or delete a project to remove its database records and all related R2 media, renders, thumbnails, waveforms and pending multipart uploads.
           </p>
           <p>
             AI prompts include session text and evidence text only. Media files are never uploaded to the

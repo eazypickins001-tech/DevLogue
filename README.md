@@ -25,6 +25,8 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Content studio, calendar, feedback inbox, analytics from your own data, integration status and read-only connection checks.
 - In-app help and user guide (`/help`) covering recording, editing, captions, rendering, publishing, storage and troubleshooting.
 - Light, dark and system theme modes with a persisted preference.
+- Public landing page at `/`, responsive app shell and basic PWA installation with offline fallback.
+- Worker control panel on Video Production: start/stop the worker through a token-protected control service.
 
 Verified end-to-end with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → removal → cleanup. A real scheduled post was also created against the Ai4Beginners Facebook page (10:00 Africa/Kigali → 08:00Z), confirmed as `scheduled` in HighLevel, then deleted before publication.
 
@@ -247,6 +249,24 @@ RENDER_FONT=
 
 Storyboard renders currently use a silent AAC track and burn narration on screen. Timeline renders mix the recorded microphone and system-audio tracks. Voice-over/TTS generation is not implemented yet.
 
+## Worker control
+
+The web app cannot spawn a process on your PC or VPS directly. Run the small control service on the worker machine:
+
+```powershell
+$env:WORKER_CONTROL_TOKEN="a-long-random-token"
+pnpm worker:control
+```
+
+Then configure the app:
+
+```dotenv
+WORKER_CONTROL_URL=http://127.0.0.1:4100
+WORKER_CONTROL_TOKEN=a-long-random-token
+```
+
+On Vercel, `WORKER_CONTROL_URL` must be a public HTTPS endpoint (for example a Cloudflare Tunnel to the control service) and the token must be kept secret. The control service listens on port 4100 and exposes `/health`, `/status`, `/start` and `/stop`. Use the **Worker control** panel on the Video Production page.
+
 ## Quality gates
 
 ```powershell
@@ -287,7 +307,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 ## Known limitations
 
 - **Video rendering is local-only.** The worker needs FFmpeg and faster-whisper installed on the machine running it. Production can queue jobs but cannot render them. Storyboard renders use silent audio with on-screen narration; timeline renders mix the recorded microphone/system tracks. There is no TTS or voice-over generation yet.
-- **Timeline rendering, transcription, thumbnails and waveforms are local-only.** These jobs queue in Postgres and are produced by `pnpm worker`; Vercel can save and queue them but cannot process them.
+- **PWA is installable but not a full offline app.** The landing/app shell and offline page are cached; authenticated data, uploads and worker jobs still require a connection.\n- **The worker control button needs a running control service.** Vercel cannot spawn a process on your PC or VPS; `pnpm worker:control` must be running and reachable via `WORKER_CONTROL_URL`.\n- **Timeline rendering, transcription, thumbnails and waveforms are local-only.** These jobs queue in Postgres and are produced by `pnpm worker`; Vercel can save and queue them but cannot process them.
 - **Caption generation is manual and one-shot.** It replaces clips labeled `Auto caption` when regenerated; manually edited captions keep their own labels.
 - **Large recordings use multipart uploads.** Files above 16MB split into 16MB parts with concurrency, per-part retry and progress. Interrupted uploads can be resumed from the session Media card by selecting the same file again; each track must remain under the 512MB video limit.
 - **Camera/audio sync is manual.** Tracks start together, but drift or device latency can be corrected with the inspector's +/-100ms and +/-500ms nudges, a numeric offset, and source trim. There is no automatic audio/video alignment yet.

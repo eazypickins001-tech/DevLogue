@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
-import { Badge, PageHeader, SetupNotice, linkClass } from "@/components/ui";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  PageHeader,
+  SetupNotice,
+  buttonSecondary,
+  linkClass,
+} from "@/components/ui";
 import { getOwner } from "@/lib/auth";
 import { listDrafts } from "@/lib/queries";
 import { DRAFT_STATUS_LABELS, truncate, formatDate } from "@/lib/labels";
@@ -42,6 +50,17 @@ export default async function StudioPage({
         title="Content Studio"
         description="Every draft is versioned. AI output, your edits and the approved version stay separate."
       />
+      <Card>
+        <CardHeader
+          title="Video content starts in the Video Editor"
+          description="Editing a timeline does not automatically create a Content Studio draft. Render the timeline, then choose Create content draft."
+        />
+        <div className="p-5">
+          <Link className={buttonSecondary} href="/timelines">
+            Open Video Editor
+          </Link>
+        </div>
+      </Card>
       {message ? (
         <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           {message}
@@ -99,9 +118,13 @@ export default async function StudioPage({
         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center">
           <h2 className="text-sm font-semibold text-slate-800">No drafts match this filter</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Generate content from an analyzed{" "}
+            Text drafts come from an analyzed{" "}
             <Link className={linkClass} href="/sessions">
               build session
+            </Link>
+            . Video drafts come from a rendered{" "}
+            <Link className={linkClass} href="/timelines">
+              timeline
             </Link>
             .
           </p>

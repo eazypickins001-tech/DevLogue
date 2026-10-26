@@ -14,6 +14,7 @@ const SECTIONS = [
   ["publishing", "Publishing"],
   ["storage", "Storage and deletion"],
   ["worker", "Worker setup"],
+  ["install", "Install app"],
   ["troubleshooting", "Troubleshooting"],
   ["faq", "FAQ"],
 ];
@@ -216,9 +217,19 @@ python -m venv .venv
 .\\.venv\\Scripts\\pip install -r scripts\\requirements-worker.txt
 pnpm worker`}</code></pre>
               <p>Use <code className="font-mono">pnpm worker:once</code> to process one job and exit. Jobs processed in order: media previews, transcription, timeline renders and storyboard renders.</p>
+              <p>The <strong>Worker control</strong> panel on Video Production can start and stop the worker when the control service is running. Start it with <code className="font-mono">pnpm worker:control</code> and set <code className="font-mono">WORKER_CONTROL_URL</code> plus <code className="font-mono">WORKER_CONTROL_TOKEN</code>.</p>
             </div>
           </Card>
 
+          <Card id="install">
+            <CardHeader title="Install app" description="DevLogue can be installed as a PWA." />
+            <div className="space-y-3 p-5 text-sm text-slate-700">
+              <p><strong>Desktop Chrome/Edge:</strong> use the install icon in the address bar, or the <strong>Install app</strong> button on the landing page.</p>
+              <p><strong>Android:</strong> Chrome menu ? <strong>Install app</strong> / <strong>Add to Home screen</strong>.</p>
+              <p><strong>iPhone/iPad:</strong> Safari ? Share ? <strong>Add to Home Screen</strong>. iOS does not show a browser install prompt.</p>
+              <p>The app shell and landing page work offline. Projects, media, uploads, rendering and transcription still need a connection and a running worker.</p>
+            </div>
+          </Card>
           <Card id="troubleshooting">
             <CardHeader title="Troubleshooting" description="Common fixes." />
             <div className="space-y-4 p-5 text-sm text-slate-700">

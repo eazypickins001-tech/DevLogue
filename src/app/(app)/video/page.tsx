@@ -3,6 +3,7 @@ import { isDatabaseConfigured } from "@/db";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, linkClass } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
 import { listRenderJobsForUser, listStoryboardDrafts } from "@/lib/queries";
+import { WorkerControl } from "@/components/worker-control";
 import { formatDate, formatDateTime } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,16 @@ export default async function VideoPage() {
           tools are skipped, not faked.
         </p>
       </SetupNotice>
+
+      <Card>
+        <CardHeader
+          title="Worker control"
+          description="Start or stop the local/Contabo render, transcription and preview worker."
+        />
+        <div className="p-5">
+          <WorkerControl />
+        </div>
+      </Card>
 
       <Card>
         <CardHeader

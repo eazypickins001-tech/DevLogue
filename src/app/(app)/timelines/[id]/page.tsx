@@ -9,7 +9,7 @@ import {
   FormMessage,
   PageHeader,
   buttonDanger,
-  linkClass,
+  buttonPrimary,
 } from "@/components/ui";
 import { createTimelineDraft, deleteTimeline } from "@/app/actions/recordings";
 import { getOwner, requireSession } from "@/lib/auth";
@@ -90,22 +90,39 @@ export default async function TimelinePage({
       />
       <Card>
         <CardHeader
+          title="Send to Content Studio"
+          description="Editing saves the timeline. Content Studio receives a short-video draft only after a successful render."
+        />
+        <div className="space-y-3 p-5 text-sm text-slate-700">
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>Edit and save the timeline.</li>
+            <li>Queue final render and run the worker.</li>
+            <li>Create the content draft and finish it in Content Studio.</li>
+          </ol>
+          {timeline.draftId ? (
+            <Link className={buttonPrimary} href={`/studio/${timeline.draftId}`}>
+              Open content draft
+            </Link>
+          ) : hasRendered ? (
+            <form action={createTimelineDraft}>
+              <input type="hidden" name="timelineId" value={timeline.id} />
+              <button type="submit" className={buttonPrimary}>
+                Create content draft
+              </button>
+            </form>
+          ) : (
+            <p className="text-slate-600">
+              No successful render yet. Use <strong>Queue final render</strong> in the editor, start the
+              worker, then return here.
+            </p>
+          )}
+        </div>
+      </Card>
+
+      <Card id="render">
+        <CardHeader
           title="Render queue"
           description="Final MP4 rendering runs on the Contabo/local worker. Start it with pnpm worker."
-          action={
-            timeline.draftId ? (
-              <Link className={linkClass} href={`/studio/${timeline.draftId}`}>
-                Open draft
-              </Link>
-            ) : hasRendered ? (
-              <form action={createTimelineDraft}>
-                <input type="hidden" name="timelineId" value={timeline.id} />
-                <button type="submit" className={linkClass}>
-                  Create content draft
-                </button>
-              </form>
-            ) : null
-          }
         />
         {renderJobs.length === 0 ? (
           <p className="p-5 text-sm text-slate-600">

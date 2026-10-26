@@ -398,6 +398,21 @@ export function TimelineEditor({
                     No visible clip at this time.
                   </div>
                 ) : null}
+                {!playing ? (
+                  <button
+                    type="button"
+                    aria-label="Play timeline preview"
+                    className="absolute inset-0 z-20 grid place-items-center bg-slate-950/20 transition hover:bg-slate-950/35"
+                    onClick={() => {
+                      if (time >= duration) seek(0);
+                      setPlaying(true);
+                    }}
+                  >
+                    <span className="rounded-full bg-white/90 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg">
+                      Play preview
+                    </span>
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

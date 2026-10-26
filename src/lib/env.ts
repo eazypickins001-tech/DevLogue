@@ -69,6 +69,15 @@ export function getServiceStatuses(): ServiceStatus[] {
         "Add an OpenRouter key (or set AI_PROVIDER=openai-compatible with a base URL and key). Model names are configured separately.",
     },
     {
+      key: "worker",
+      label: "Worker control",
+      configured: has("WORKER_CONTROL_URL") && has("WORKER_CONTROL_TOKEN"),
+      requiredFor: "Starting and stopping the render/transcription worker from the UI",
+      envVars: ["WORKER_CONTROL_URL", "WORKER_CONTROL_TOKEN"],
+      setup:
+        "Run pnpm worker:control on the worker machine and expose it over HTTPS for Vercel, then add the URL and token.",
+    },
+    {
       key: "ghl",
       label: "GoHighLevel",
       configured: has("GHL_API_TOKEN") && has("GHL_LOCATION_ID") && has("GHL_USER_ID"),
