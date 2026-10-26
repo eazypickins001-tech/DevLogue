@@ -240,6 +240,44 @@ export async function getWorkerQueueSummary(): Promise<WorkerQueueSummary> {
     storyboards: normalize(storyboards),
   };
 }
+export type StorageSummary = {
+  totalBytes: number;
+  assetCount: number;
+  byKind: { kind: string; bytes: number; count: number }[];
+  byProject: { id: string; name: string; bytes: number; count: number }[];
+};
+
+export async function getStorageSummary(userId: string): Promise<StorageSummary> {
+  const db = getDb();
+  const bytes = sql<string>`coalesce(sum(${mediaAssets.sizeBytes}), 0)::bigint`;
+  const count = sql<number>`count(*)::int`;
+  const [byKind, byProject, totals] = await Promise.all([
+    db
+      .select({ kind: mediaAssets.kind, bytes, count })
+      .from(mediaAssets)
+      .where(eq(mediaAssets.userId, userId))
+      .groupBy(mediaAssets.kind)
+      .orderBy(desc(bytes)),
+    db
+      .select({ id: projects.id, name: projects.name, bytes, count })
+      .from(mediaAssets)
+      .innerJoin(projects, eq(mediaAssets.projectId, projects.id))
+      .where(eq(mediaAssets.userId, userId))
+      .groupBy(projects.id, projects.name)
+      .orderBy(desc(bytes))
+      .limit(8),
+    db
+      .select({ bytes, count })
+      .from(mediaAssets)
+      .where(eq(mediaAssets.userId, userId)),
+  ]);
+  return {
+    totalBytes: Number(totals[0]?.bytes ?? 0),
+    assetCount: Number(totals[0]?.count ?? 0),
+    byKind: byKind.map((row) => ({ ...row, bytes: Number(row.bytes) })),
+    byProject: byProject.map((row) => ({ ...row, bytes: Number(row.bytes) })),
+  };
+}
 export async function listPendingMultipartUploads(userId: string, sessionId: string) {
   const db = getDb();
   return db

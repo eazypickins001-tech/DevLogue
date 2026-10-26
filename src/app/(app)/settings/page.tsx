@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Badge, Card, CardHeader, PageHeader, linkClass } from "@/components/ui";
+import { isDatabaseConfigured } from "@/db";
 import { getServiceStatuses, aiProviderName } from "@/lib/env";
-import { ownerEmail } from "@/lib/auth";
+import { getOwner, ownerEmail } from "@/lib/auth";
+import { getStorageSummary, type StorageSummary } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +38,24 @@ const PHASES = [
   },
 ];
 
-export default function SettingsPage() {
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unit = units[0];
+  for (let index = 1; index < units.length && value >= 1024; index += 1) {
+    value /= 1024;
+    unit = units[index];
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${unit}`;
+}
+
+export default async function SettingsPage() {
   const services = getServiceStatuses();
+  let storage: StorageSummary | null = null;
+  if (isDatabaseConfigured()) {
+    storage = await getStorageSummary((await getOwner()).id);
+  }
 
   return (
     <div className="space-y-6">
@@ -124,6 +142,58 @@ export default function SettingsPage() {
           </p>
         </div>
       </Card>
+
+      {storage ? (
+        <Card>
+          <CardHeader
+            title="Storage"
+            description="Recorded media and renders stored in your private R2 bucket."
+          />
+          <div className="space-y-4 p-5 text-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-2xl font-semibold tracking-tight text-slate-900">
+                {formatBytes(storage.totalBytes)}
+              </p>
+              <p className="text-xs text-slate-500">{storage.assetCount} media assets</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {storage.byKind.map((row) => (
+                <div key={row.kind} className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {row.kind}
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">{formatBytes(row.bytes)}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.count} item{row.count === 1 ? "" : "s"}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {storage.byProject.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Largest projects
+                </p>
+                <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {storage.byProject.map((project) => (
+                    <li key={project.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <span className="truncate text-slate-800">{project.name}</span>
+                      <span className="shrink-0 text-xs text-slate-500">
+                        {formatBytes(project.bytes)} - {project.count} asset
+                        {project.count === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <p className="text-xs text-slate-500">
+              Sizes are recorded when assets are uploaded. Thumbnails and waveforms live under their
+              parent asset; this summary does not list R2 objects orphaned outside the database.
+            </p>
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader title="Operations" />
