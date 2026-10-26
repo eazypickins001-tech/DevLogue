@@ -31,7 +31,7 @@ export default async function HelpPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="Help sections" className="h-fit rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
+        <nav aria-label="Help sections" className="h-fit min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">On this page</p>
           <ul className="mt-2 space-y-1 text-sm">
             {SECTIONS.map(([id, label]) => (
@@ -44,7 +44,7 @@ export default async function HelpPage() {
           </ul>
         </nav>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Card id="quick-start">
             <CardHeader
               title="Quick start"
