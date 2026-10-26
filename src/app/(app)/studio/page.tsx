@@ -10,7 +10,7 @@ import {
   linkClass,
 } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
-import { listDrafts } from "@/lib/queries";
+import { listDrafts, listTimelines } from "@/lib/queries";
 import { DRAFT_STATUS_LABELS, truncate, formatDate } from "@/lib/labels";
 import { CONTENT_FORMATS, CONTENT_FORMAT_VALUES, type ContentFormatValue } from "@/lib/domain/content";
 
@@ -28,7 +28,7 @@ export default async function StudioPage({
   if (!isDatabaseConfigured()) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Content Studio" />
+        <PageHeader title="Studio" />
         <SetupNotice title="Database required">
           Set <code className="font-mono">DATABASE_URL</code> and run{" "}
           <code className="font-mono">pnpm db:migrate</code>.
@@ -38,7 +38,10 @@ export default async function StudioPage({
   }
 
   const owner = await getOwner();
-  const rows = await listDrafts(owner.id, { status, format });
+  const [rows, timelines] = await Promise.all([
+    listDrafts(owner.id, { status, format }),
+    listTimelines(owner.id),
+  ]);
   const activeStatus = STATUSES.includes(status as (typeof STATUSES)[number]) ? status : undefined;
   const activeFormat = CONTENT_FORMAT_VALUES.includes(format as ContentFormatValue)
     ? format
@@ -47,19 +50,61 @@ export default async function StudioPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Content Studio"
-        description="Every draft is versioned. AI output, your edits and the approved version stay separate."
+        title="Studio"
+        description="Drafts and video timelines in one place. AI output, your edits and the approved version stay separate."
       />
       <Card>
         <CardHeader
-          title="Video content starts in the Video Editor"
-          description="Editing a timeline does not automatically create a Content Studio draft. Render the timeline, then choose Create content draft."
+          title="Video timelines"
+          description="Recordings and edits. Render a timeline, then create a short-video draft."
+          action={
+            <Link className={linkClass} href="/timelines">
+              All timelines
+            </Link>
+          }
         />
-        <div className="p-5">
-          <Link className={buttonSecondary} href="/timelines">
-            Open Video Editor
-          </Link>
-        </div>
+        {timelines.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-5 text-sm text-slate-600">
+            <p>No video timelines yet. Record a session to create one.</p>
+            <Link className={buttonSecondary} href="/record">
+              Record a session
+            </Link>
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {timelines.map(({ timeline, projectName, sessionTitle, clipCount }) => (
+              <li key={timeline.id}>
+                <Link
+                  href={`/timelines/${timeline.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 no-underline transition hover:bg-slate-50"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{timeline.title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {projectName}
+                      {sessionTitle ? ` - ${sessionTitle}` : ""} - {timeline.aspectRatio} - {clipCount} clip
+                      {clipCount === 1 ? "" : "s"} - {formatDate(timeline.updatedAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      tone={
+                        timeline.status === "rendered"
+                          ? "success"
+                          : timeline.status === "failed"
+                            ? "danger"
+                            : "warning"
+                      }
+                    >
+                      {timeline.status}
+                    </Badge>
+                    <span className={linkClass}>Open editor</span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
       {message ? (
         <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">

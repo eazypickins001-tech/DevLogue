@@ -135,7 +135,7 @@ export default async function HelpPage() {
           </Card>
 
           <Card id="editing">
-            <CardHeader title="Editing a video" description="The video editor is not the same page as Content Studio." />
+            <CardHeader title="Editing a video" description="Studio lists drafts and timelines; the timeline editor is a focused page for the actual edit." />
             <div className="space-y-3 p-5 text-sm text-slate-700">
               <p>
                 Open a generated timeline from the save prompt or from the session page’s <strong>Video editor</strong>{" "}
@@ -276,8 +276,8 @@ pnpm worker`}</code></pre>
                 <p className="mt-1">Phone recording and the responsive pages work. The timeline editor is still desktop-first; full mobile editing and PWA installation are on the roadmap.</p>
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">What is the difference between Content Studio and Video Editor?</h3>
-                <p className="mt-1">Content Studio holds text drafts and storyboards. Video Editor holds recording timelines, clips, captions and renders.</p>
+                <h3 className="font-semibold text-slate-900">What is the difference between Studio and the Video Editor?</h3>
+                <p className="mt-1">Studio lists text drafts, storyboards and video timelines. The Video Editor opens a timeline for trimming, captions, sync, preview and rendering.</p>
               </div>
             </div>
           </Card>

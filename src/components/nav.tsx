@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/sessions", label: "Build Sessions" },
   { href: "/record", label: "Record" },
   { href: "/timelines", label: "Video Editor" },
-  { href: "/studio", label: "Content Studio" },
+  { href: "/studio", label: "Studio" },
   { href: "/video", label: "Video Production" },
   { href: "/calendar", label: "Publishing Calendar" },
   { href: "/feedback", label: "Feedback" },

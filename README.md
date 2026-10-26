@@ -2,7 +2,7 @@
 
 Build in public from real work. DevLogue turns documented development sessions into evidence-based social content, storyboards and HighLevel draft posts — without inventing results.
 
-The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 
 ## What works today
 
@@ -22,7 +22,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Deterministic quality checks: platform limits, generic phrases, hype punctuation, unsupported numbers.
 - GoHighLevel Social Planner handoff: discover accounts, select per project, upload media, create **drafts** or **scheduled** posts, log jobs, remove drafts.
 - Test mode (`GHL_TEST_MODE=true`, the documented default): posts are created as HighLevel drafts and never published.
-- Content studio, calendar, feedback inbox, analytics from your own data, integration status and read-only connection checks.
+- Studio with drafts and video timelines, calendar, feedback inbox, analytics from your own data, integration status and read-only connection checks.
 - In-app help and user guide (`/help`) covering recording, editing, captions, rendering, publishing, storage and troubleshooting.
 - Light, dark and system theme modes with a persisted preference.
 - Public landing page at `/`, responsive app shell and basic PWA installation with offline fallback.
