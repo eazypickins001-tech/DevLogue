@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
+import { createTimelineDraft } from "@/app/actions/recordings";
 import {
   Badge,
   Card,
@@ -56,7 +58,7 @@ export default async function StudioPage({
       <Card>
         <CardHeader
           title="Video timelines"
-          description="Recordings and edits. Render a timeline, then create a short-video draft."
+          description="Recordings and edits. Rendered videos show their worker-generated preview; create the short-video draft when ready."
           action={
             <Link className={linkClass} href="/timelines">
               All timelines
@@ -72,21 +74,39 @@ export default async function StudioPage({
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {timelines.map(({ timeline, projectName, sessionTitle, clipCount }) => (
-              <li key={timeline.id}>
-                <Link
-                  href={`/timelines/${timeline.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 no-underline transition hover:bg-slate-50"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">{timeline.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {projectName}
-                      {sessionTitle ? ` - ${sessionTitle}` : ""} - {timeline.aspectRatio} - {clipCount} clip
-                      {clipCount === 1 ? "" : "s"} - {formatDate(timeline.updatedAt)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
+            {timelines.map(
+              ({ timeline, projectName, sessionTitle, clipCount, renderMediaId, renderThumbnailKey }) => (
+                <li key={timeline.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                  <Link
+                    href={`/timelines/${timeline.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 no-underline transition hover:opacity-80"
+                  >
+                    <div className="relative grid h-16 w-28 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+                      {renderMediaId && renderThumbnailKey ? (
+                        <Image
+                          src={`/api/media/${renderMediaId}/thumbnail`}
+                          alt=""
+                          width={112}
+                          height={64}
+                          unoptimized
+                          className="h-16 w-28 object-cover"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                          No preview
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{timeline.title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {projectName}
+                        {sessionTitle ? ` - ${sessionTitle}` : ""} - {timeline.aspectRatio} - {clipCount} clip
+                        {clipCount === 1 ? "" : "s"} - {formatDate(timeline.updatedAt)}
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
                     <Badge
                       tone={
                         timeline.status === "rendered"
@@ -98,11 +118,26 @@ export default async function StudioPage({
                     >
                       {timeline.status}
                     </Badge>
-                    <span className={linkClass}>Open editor</span>
+                    {timeline.draftId ? (
+                      <Link className={buttonSecondary} href={`/studio/${timeline.draftId}`}>
+                        Open draft
+                      </Link>
+                    ) : timeline.status === "rendered" && renderMediaId ? (
+                      <form action={createTimelineDraft}>
+                        <input type="hidden" name="timelineId" value={timeline.id} />
+                        <button type="submit" className={buttonSecondary}>
+                          Create draft
+                        </button>
+                      </form>
+                    ) : (
+                      <Link className={linkClass} href={`/timelines/${timeline.id}`}>
+                        Open editor
+                      </Link>
+                    )}
                   </div>
-                </Link>
-              </li>
-            ))}
+                </li>
+              ),
+            )}
           </ul>
         )}
       </Card>

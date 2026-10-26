@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, PageHeader, SetupNotice, linkClass } from "@/components/ui";
@@ -50,29 +51,47 @@ export default async function TimelinesPage() {
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <ul className="divide-y divide-slate-100">
-            {rows.map(({ timeline, projectName, sessionTitle, clipCount }) => (
-              <li key={timeline.id}>
-                <Link
-                  href={`/timelines/${timeline.id}`}
-                  className="flex flex-wrap items-start justify-between gap-3 px-5 py-4 no-underline transition hover:bg-slate-50"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">{timeline.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {projectName}
-                      {sessionTitle ? ` - ${sessionTitle}` : ""} - {formatDuration(Number(timeline.durationSeconds))} -{" "}
-                      {clipCount} clip{clipCount === 1 ? "" : "s"} - {formatDate(timeline.updatedAt)}
-                    </p>
-                  </div>
+            {rows.map(
+              ({ timeline, projectName, sessionTitle, clipCount, renderMediaId, renderThumbnailKey }) => (
+                <li key={timeline.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                  <Link
+                    href={`/timelines/${timeline.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 no-underline transition hover:opacity-80"
+                  >
+                    <div className="relative grid h-16 w-28 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+                      {renderMediaId && renderThumbnailKey ? (
+                        <Image
+                          src={`/api/media/${renderMediaId}/thumbnail`}
+                          alt=""
+                          width={112}
+                          height={64}
+                          unoptimized
+                          className="h-16 w-28 object-cover"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                          No preview
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{timeline.title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {projectName}
+                        {sessionTitle ? ` - ${sessionTitle}` : ""} - {formatDuration(Number(timeline.durationSeconds))} -{" "}
+                        {clipCount} clip{clipCount === 1 ? "" : "s"} - {formatDate(timeline.updatedAt)}
+                      </p>
+                    </div>
+                  </Link>
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge tone="neutral">{timeline.aspectRatio}</Badge>
                     <Badge tone={timeline.status === "draft" ? "warning" : "success"}>
                       {timeline.status}
                     </Badge>
                   </div>
-                </Link>
-              </li>
-            ))}
+                </li>
+              ),
+            )}
           </ul>
         </div>
       )}

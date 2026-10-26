@@ -1,6 +1,6 @@
-const ALLOWED_PATHS = new Set(["/health", "/status", "/start", "/stop"]);
+const ALLOWED_PATHS = new Set(["/health", "/status", "/log", "/start", "/stop"]);
 
-export default {
+const worker = {
   async fetch(request, env) {
     const incoming = new URL(request.url);
 
@@ -36,3 +36,5 @@ export default {
     });
   },
 };
+
+export default worker;

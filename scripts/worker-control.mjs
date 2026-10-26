@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { appendFileSync, existsSync, mkdirSync, openSync, closeSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, openSync, closeSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +19,8 @@ if (!token) {
 let child = null;
 let startedAt = null;
 let lastExit = null;
+let stopRequested = false;
+let restartTimer = null;
 
 function authorized(request) {
   const header = request.headers.authorization || "";
@@ -35,8 +37,18 @@ function status() {
   };
 }
 
+function logTail(lineCount = 200) {
+  if (!existsSync(logPath)) return "";
+  return readFileSync(logPath, "utf8").split(/\r?\n/).slice(-lineCount).join("\n");
+}
+
 function startWorker() {
   if (child && child.exitCode === null) return { ok: true, alreadyRunning: true, ...status() };
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
+  stopRequested = false;
   mkdirSync(root, { recursive: true });
   if (!existsSync(logPath)) appendFileSync(logPath, "");
   const logFd = openSync(logPath, "a");
@@ -49,14 +61,28 @@ function startWorker() {
     windowsHide: true,
   });
   closeSync(logFd);
-  child.on("exit", (code, signal) => {
+  const target = child;
+  target.on("exit", (code, signal) => {
     lastExit = { code, signal, at: new Date().toISOString() };
-    child = null;
+    if (child === target) child = null;
+    if (!stopRequested) {
+      console.log("worker-control: worker exited; restarting in 5s");
+      restartTimer = setTimeout(() => {
+        restartTimer = null;
+        if (!child) startWorker();
+      }, 5000);
+      restartTimer.unref();
+    }
   });
   return { ok: true, alreadyRunning: false, ...status() };
 }
 
 function stopWorker() {
+  stopRequested = true;
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
   if (!child || child.exitCode !== null) return { ok: true, alreadyRunning: false, ...status() };
   const target = child;
   const pid = target.pid;
@@ -82,6 +108,10 @@ const server = createServer((request, response) => {
   }
   if (request.method === "GET" && request.url === "/status") {
     response.end(JSON.stringify({ ok: true, ...status() }));
+    return;
+  }
+  if (request.method === "GET" && request.url === "/log") {
+    response.end(JSON.stringify({ ok: true, log: logTail() }));
     return;
   }
   if (request.method === "POST" && request.url === "/start") {

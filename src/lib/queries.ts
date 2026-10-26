@@ -150,6 +150,24 @@ export async function listTimelines(userId: string) {
       projectName: projects.name,
       sessionTitle: buildSessions.title,
       clipCount: sql<number>`(select coalesce(sum(jsonb_array_length(track->'clips')), 0)::int from jsonb_array_elements(${timelineProjects.document}->'tracks') as track)`,
+      renderMediaId: sql<string | null>`(
+        select a.id
+        from timeline_render_jobs j
+        join media_assets a on a.storage_key = j.output_key
+        where j.timeline_id = ${timelineProjects.id}
+          and j.status = 'succeeded'
+        order by j.created_at desc
+        limit 1
+      )`,
+      renderThumbnailKey: sql<string | null>`(
+        select a.thumbnail_key
+        from timeline_render_jobs j
+        join media_assets a on a.storage_key = j.output_key
+        where j.timeline_id = ${timelineProjects.id}
+          and j.status = 'succeeded'
+        order by j.created_at desc
+        limit 1
+      )`,
     })
     .from(timelineProjects)
     .innerJoin(projects, eq(timelineProjects.projectId, projects.id))

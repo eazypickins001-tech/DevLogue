@@ -1,14 +1,18 @@
+import Image from "next/image";
 import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
-import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, linkClass } from "@/components/ui";
+import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, buttonSecondary, linkClass } from "@/components/ui";
+import { createTimelineDraft } from "@/app/actions/recordings";
 import { getOwner } from "@/lib/auth";
 import {
   getWorkerQueueSummary,
   listRenderJobsForUser,
   listStoryboardDrafts,
+  listTimelines,
 } from "@/lib/queries";
 import { WorkerControl } from "@/components/worker-control";
 import { formatDate, formatDateTime } from "@/lib/labels";
+import { formatDuration } from "@/lib/recording/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +30,13 @@ export default async function VideoPage() {
   }
 
   const owner = await getOwner();
-  const [boards, jobs, queue] = await Promise.all([
+  const [boards, jobs, queue, timelines] = await Promise.all([
     listStoryboardDrafts(owner.id),
     listRenderJobsForUser(owner.id),
     getWorkerQueueSummary(),
+    listTimelines(owner.id),
   ]);
+  const renderedTimelines = timelines.filter((row) => row.renderMediaId);
 
   return (
     <div className="space-y-6">
@@ -58,6 +64,10 @@ export default async function VideoPage() {
         />
         <div className="p-5">
           <WorkerControl />
+          <p className="mt-3 text-xs text-slate-500">
+            The worker stays running and polls for jobs. 0 queued means it is idle; stop it when you
+            want to free the server.
+          </p>
         </div>
       </Card>
 
@@ -85,6 +95,77 @@ export default async function VideoPage() {
           ))}
         </div>
       </Card>
+
+      <Card>
+        <CardHeader
+          title="Timeline outputs"
+          description="Rendered videos and their worker-generated previews. Open one to edit, or create its Studio draft."
+          action={
+            <Link className={linkClass} href="/timelines">
+              All timelines
+            </Link>
+          }
+        />
+        {renderedTimelines.length === 0 ? (
+          <p className="p-5 text-sm text-slate-600">
+            No rendered timelines yet. Open the Video Editor, queue a render, then let the worker
+            finish.
+          </p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {renderedTimelines.slice(0, 6).map(
+              ({ timeline, projectName, renderMediaId, renderThumbnailKey }) => (
+                <li key={timeline.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                  <Link
+                    href={`/timelines/${timeline.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 no-underline transition hover:opacity-80"
+                  >
+                    <div className="relative grid h-16 w-28 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100">
+                      {renderMediaId && renderThumbnailKey ? (
+                        <Image
+                          src={`/api/media/${renderMediaId}/thumbnail`}
+                          alt=""
+                          width={112}
+                          height={64}
+                          unoptimized
+                          className="h-16 w-28 object-cover"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                          Preview queued
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">{timeline.title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {projectName} - {formatDuration(Number(timeline.durationSeconds))} -{" "}
+                        {formatDate(timeline.updatedAt)}
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge tone="success">rendered</Badge>
+                    {timeline.draftId ? (
+                      <Link className={buttonSecondary} href={`/studio/${timeline.draftId}`}>
+                        Open draft
+                      </Link>
+                    ) : (
+                      <form action={createTimelineDraft}>
+                        <input type="hidden" name="timelineId" value={timeline.id} />
+                        <button type="submit" className={buttonSecondary}>
+                          Create draft
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
+      </Card>
+
       <Card>
         <CardHeader
           title="Storyboards"
