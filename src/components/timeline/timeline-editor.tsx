@@ -310,8 +310,12 @@ export function TimelineEditor({
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-sm">
             <div className="flex items-center justify-center p-3">
               <div
-                className="relative max-h-[58vh] overflow-hidden bg-black"
-                style={{ aspectRatio: document.aspectRatio === "16:9" ? "16 / 9" : "9 / 16" }}
+                className="relative mx-auto w-full max-w-full overflow-hidden bg-black"
+                style={{
+                  aspectRatio: document.aspectRatio === "16:9" ? "16 / 9" : "9 / 16",
+                  maxHeight: "58vh",
+                  maxWidth: document.aspectRatio === "9:16" ? "min(100%, 360px)" : "100%",
+                }}
               >
                 {document.tracks.flatMap((track) =>
                   track.clips

@@ -2,7 +2,11 @@ import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, linkClass } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
-import { listRenderJobsForUser, listStoryboardDrafts } from "@/lib/queries";
+import {
+  getWorkerQueueSummary,
+  listRenderJobsForUser,
+  listStoryboardDrafts,
+} from "@/lib/queries";
 import { WorkerControl } from "@/components/worker-control";
 import { formatDate, formatDateTime } from "@/lib/labels";
 
@@ -22,9 +26,10 @@ export default async function VideoPage() {
   }
 
   const owner = await getOwner();
-  const [boards, jobs] = await Promise.all([
+  const [boards, jobs, queue] = await Promise.all([
     listStoryboardDrafts(owner.id),
     listRenderJobsForUser(owner.id),
+    getWorkerQueueSummary(),
   ]);
 
   return (
@@ -37,9 +42,9 @@ export default async function VideoPage() {
       <SetupNotice title="Rendering runs on your machine">
         <p>
           Queue a render from a storyboard, then run the worker. It trims and loops clips, scales to
-          1080×1920, burns captions, adds an audio track, validates with ffprobe and uploads to R2.
+          1080Ã—1920, burns captions, adds an audio track, validates with ffprobe and uploads to R2.
         </p>
-        <p className="font-mono text-xs">pnpm worker · pnpm worker:once · ffmpeg 9.0.2 · faster-whisper base.en</p>
+        <p className="font-mono text-xs">pnpm worker Â· pnpm worker:once Â· ffmpeg 9.0.2 Â· faster-whisper base.en</p>
         <p>
           Whisper transcribes uploaded video/audio once per asset and stores the segments; missing
           tools are skipped, not faked.
@@ -56,6 +61,30 @@ export default async function VideoPage() {
         </div>
       </Card>
 
+      <Card>
+        <CardHeader
+          title="Queue"
+          description="Queued and running work across previews, transcription and rendering."
+        />
+        <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Previews", counts: queue.derivatives },
+            { label: "Transcription", counts: queue.transcription },
+            { label: "Timelines", counts: queue.timelines },
+            { label: "Storyboards", counts: queue.storyboards },
+          ].map(({ label, counts }) => (
+            <div key={label} className="rounded-lg border border-slate-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+              <p className="mt-1 text-sm text-slate-700">
+                {counts.queued ?? 0} queued · {counts.running ?? 0} running
+              </p>
+              {counts.failed ? (
+                <p className="text-xs text-rose-700">{counts.failed} failed</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </Card>
       <Card>
         <CardHeader
           title="Storyboards"
@@ -83,8 +112,8 @@ export default async function VideoPage() {
                       {board.hook || draft.title || "Short video"}
                     </Link>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {projectName} · {formatDate(board.createdAt)} · {sceneCount} scenes ·{" "}
-                      {linkedScenes} linked to media · {board.totalDurationSec}s / {board.targetDurationSec}s
+                      {projectName} Â· {formatDate(board.createdAt)} Â· {sceneCount} scenes Â·{" "}
+                      {linkedScenes} linked to media Â· {board.totalDurationSec}s / {board.targetDurationSec}s
                     </p>
                   </div>
                   <Badge tone={board.totalDurationSec === board.targetDurationSec ? "success" : "danger"}>
@@ -132,7 +161,7 @@ export default async function VideoPage() {
                   </Badge>
                 </div>
                 <p className="text-xs text-slate-500">
-                  {projectName} · queued {formatDateTime(job.createdAt)} · attempt {job.attempts}
+                  {projectName} Â· queued {formatDateTime(job.createdAt)} Â· attempt {job.attempts}
                 </p>
                 {job.error ? <p className="text-xs text-rose-700">{job.error}</p> : null}
                 {mediaId ? (

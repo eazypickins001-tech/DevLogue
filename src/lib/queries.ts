@@ -10,6 +10,7 @@ import {
   draftVersions,
   feedback,
   mediaAssets,
+  mediaDerivativeJobs,
   multipartUploads,
   projects,
   publishingAccounts,
@@ -187,6 +188,40 @@ export async function listTimelineRenderJobs(timelineId: string) {
     .limit(20);
 }
 
+export type WorkerQueueSummary = {
+  derivatives: Record<string, number>;
+  transcription: Record<string, number>;
+  timelines: Record<string, number>;
+  storyboards: Record<string, number>;
+};
+
+export async function getWorkerQueueSummary(): Promise<WorkerQueueSummary> {
+  const db = getDb();
+  const count = sql<number>`count(*)::int`;
+  const [derivatives, transcription, timelines, storyboards] = await Promise.all([
+    db
+      .select({ status: mediaDerivativeJobs.status, count })
+      .from(mediaDerivativeJobs)
+      .groupBy(mediaDerivativeJobs.status),
+    db
+      .select({ status: transcriptionJobs.status, count })
+      .from(transcriptionJobs)
+      .groupBy(transcriptionJobs.status),
+    db
+      .select({ status: timelineRenderJobs.status, count })
+      .from(timelineRenderJobs)
+      .groupBy(timelineRenderJobs.status),
+    db.select({ status: renderJobs.status, count }).from(renderJobs).groupBy(renderJobs.status),
+  ]);
+  const normalize = (rows: { status: string; count: number }[]) =>
+    Object.fromEntries(rows.map((row) => [row.status, row.count]));
+  return {
+    derivatives: normalize(derivatives),
+    transcription: normalize(transcription),
+    timelines: normalize(timelines),
+    storyboards: normalize(storyboards),
+  };
+}
 export async function listPendingMultipartUploads(userId: string, sessionId: string) {
   const db = getDb();
   return db

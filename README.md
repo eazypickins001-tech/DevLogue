@@ -265,7 +265,7 @@ WORKER_CONTROL_URL=http://127.0.0.1:4100
 WORKER_CONTROL_TOKEN=a-long-random-token
 ```
 
-On Vercel, `WORKER_CONTROL_URL` must be a public HTTPS endpoint (for example a Cloudflare Tunnel to the control service) and the token must be kept secret. The control service listens on port 4100 and exposes `/health`, `/status`, `/start` and `/stop`. Use the **Worker control** panel on the Video Production page.
+On Vercel, `WORKER_CONTROL_URL` must be a public HTTPS endpoint (for example a Cloudflare Tunnel to the control service) and the token must be kept secret. The control service listens on port 4100 and exposes `/health`, `/status`, `/start` and `/stop`. Set `WORKER_CONTROL_AUTOSTART=true` to start the worker with the service. Use the **Worker control** panel on the Video Production page.
 
 ## Quality gates
 

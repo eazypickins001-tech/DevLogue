@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const port = Number(process.env.WORKER_CONTROL_PORT || 4100);
-const host = process.env.WORKER_CONTROL_HOST || "0.0.0.0";
+const host = process.env.WORKER_CONTROL_HOST || "127.0.0.1";
 const token = process.env.WORKER_CONTROL_TOKEN?.trim();
 const workerPath = join(root, "scripts", "render-worker.mjs");
 const logPath = join(root, ".worker.log");
@@ -96,6 +96,10 @@ const server = createServer((request, response) => {
 server.listen(port, host, () => {
   console.log(`worker-control: listening on http://${host}:${port}`);
   console.log(`worker-control: starting worker on POST /start`);
+  if (process.env.WORKER_CONTROL_AUTOSTART === "true") {
+    console.log("worker-control: autostart enabled");
+    startWorker();
+  }
 });
 
 process.on("SIGINT", () => {
