@@ -303,7 +303,7 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - Uploads are private; reads require an authenticated session and return a short-lived signed URL.
 - Publishing media is exposed only through a short-lived, HMAC-signed handoff URL for HighLevel.
 - Deleting a project cascades sessions, evidence, drafts, timelines and render jobs in Postgres, and removes its media, renders, thumbnails, waveforms and pending multipart uploads from R2. Deleting a timeline removes its rendered video but keeps raw recording tracks.
-- No automatic purge job for application media. Error events use the 90-day `pnpm prune:errors` retention command; incidents and audit history are kept.
+- No automatic purge job for application media. Error events use a 90-day Vercel Cron prune (`CRON_SECRET`) with `pnpm prune:errors` as the manual fallback; incidents and audit history are kept.
 - Incident capture is local and private; no external error monitoring SaaS is required.
 
 ## Known limitations

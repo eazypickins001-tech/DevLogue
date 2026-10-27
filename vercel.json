@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/operations/errors/prune",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

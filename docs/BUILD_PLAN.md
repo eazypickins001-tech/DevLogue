@@ -211,6 +211,6 @@ Goal: every failure becomes a durable, searchable, redacted record with a fix an
 - [x] Add fixed/verified/archive lifecycle and audit notes.
 - [x] Add worker DB-failure spool and transient-error grouping.
 - [x] Add 90-day event-prune command.
-- [ ] Add automatic event-prune scheduling.
+- [x] Add automatic event-prune scheduling.
 - [ ] Add optional email/Telegram incident digest.
 - [ ] Add lifecycle/regression integration tests against a disposable database.

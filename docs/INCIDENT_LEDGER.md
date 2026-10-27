@@ -75,7 +75,8 @@ Client ingest is authenticated and capped at 30KB. Error recording never throws 
 ## Retention
 
 - Incidents, notes and resolution history: retained indefinitely.
-- Raw error events: recommended 90-day retention.
+- Raw error events: 90-day retention.
+- Automatic prune: Vercel Cron calls `GET /api/operations/errors/prune` daily at 03:00 UTC (`vercel.json`). The route accepts `Authorization: Bearer <CRON_SECRET>` or an authenticated owner session.
 - Manual prune:
 
 ```powershell
