@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { neon } from "@neondatabase/serverless";
+import { captureError } from "./error-ledger.mjs";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:3000";
 
@@ -25,8 +27,10 @@ page.setDefaultTimeout(45_000);
 page.on("dialog", (dialog) => void dialog.accept());
 
 let projectUrl = "";
+let currentStep = "startup";
 
 async function step(label, fn) {
+  currentStep = label;
   process.stdout.write(`- ${label}… `);
   await fn();
   console.log("ok");
@@ -153,6 +157,26 @@ try {
 } catch (error) {
   await page.screenshot({ path: ".smoke-failure.png", fullPage: true }).catch(() => {});
   console.log("SMOKE FAILED:", error instanceof Error ? error.message : error);
+  const databaseUrl = env.get("DATABASE_URL");
+  if (databaseUrl) {
+    try {
+      const sql = neon(databaseUrl);
+      await captureError(sql, {
+        source: "smoke",
+        severity: "error",
+        error,
+        route: page.url(),
+        action: `smoke:${currentStep}`,
+        context: {
+          step: currentStep,
+          screenshot: ".smoke-failure.png",
+          baseUrl: BASE,
+        },
+      });
+    } catch {
+      // Preserve the original smoke failure.
+    }
+  }
   process.exitCode = 1;
 } finally {
   await browser.close();

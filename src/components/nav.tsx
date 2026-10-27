@@ -18,6 +18,7 @@ const LINKS = [
   { href: "/analytics", label: "Analytics" },
   { href: "/integrations", label: "Integrations" },
   { href: "/settings", label: "Settings" },
+  { href: "/operations/errors", label: "Errors" },
   { href: "/help", label: "Help" },
 ];
 

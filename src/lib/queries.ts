@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   aiAnalyses,
@@ -8,6 +8,9 @@ import {
   buildSessions,
   contentDrafts,
   draftVersions,
+  errorEvents,
+  errorIncidentNotes,
+  errorIncidents,
   feedback,
   mediaAssets,
   mediaDerivativeJobs,
@@ -714,4 +717,67 @@ export async function getTranscript(mediaAssetId: string) {
     .orderBy(desc(transcripts.createdAt))
     .limit(1);
   return rows[0] ?? null;
+}
+
+export type ErrorIncidentFilters = {
+  status?: string;
+  severity?: string;
+  source?: string;
+  q?: string;
+};
+
+export async function listErrorIncidents(filters: ErrorIncidentFilters = {}) {
+  const db = getDb();
+  const conditions = [];
+  if (filters.status) conditions.push(eq(errorIncidents.status, filters.status as never));
+  if (filters.severity) conditions.push(eq(errorIncidents.severity, filters.severity as never));
+  if (filters.source) conditions.push(eq(errorIncidents.source, filters.source as never));
+  if (filters.q) {
+    const needle = `%${filters.q}%`;
+    conditions.push(
+      or(
+        ilike(errorIncidents.title, needle),
+        ilike(errorIncidents.errorMessage, needle),
+        ilike(errorIncidents.route, needle),
+      )!,
+    );
+  }
+
+  return db
+    .select()
+    .from(errorIncidents)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(errorIncidents.lastSeenAt))
+    .limit(100);
+}
+
+export async function getErrorIncidentCounts() {
+  const db = getDb();
+  const rows = await db
+    .select({ status: errorIncidents.status, count: sql<number>`count(*)::int` })
+    .from(errorIncidents)
+    .groupBy(errorIncidents.status);
+  return Object.fromEntries(rows.map((row) => [row.status, row.count]));
+}
+
+export async function getErrorIncidentDetail(id: string) {
+  const db = getDb();
+  const incident = (
+    await db.select().from(errorIncidents).where(eq(errorIncidents.id, id)).limit(1)
+  )[0];
+  if (!incident) return null;
+  const [events, notes] = await Promise.all([
+    db
+      .select()
+      .from(errorEvents)
+      .where(eq(errorEvents.incidentId, id))
+      .orderBy(desc(errorEvents.occurredAt))
+      .limit(50),
+    db
+      .select()
+      .from(errorIncidentNotes)
+      .where(eq(errorIncidentNotes.incidentId, id))
+      .orderBy(asc(errorIncidentNotes.createdAt)),
+  ]);
+  return { incident, events, notes };
 }

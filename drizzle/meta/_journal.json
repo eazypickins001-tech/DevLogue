@@ -50,6 +50,13 @@
       "when": 1792975225428,
       "tag": "0006_jittery_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793083584660,
+      "tag": "0007_large_harpoon",
+      "breakpoints": true
     }
   ]
 }

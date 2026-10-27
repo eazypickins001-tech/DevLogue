@@ -15,6 +15,7 @@ import {
   sceneInputArgs,
 } from "./render-plan.mjs";
 import { buildTimelineArgs, prepareTimelineTextFiles } from "./timeline-plan.mjs";
+import { captureError, flushErrorSpool } from "./error-ledger.mjs";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -673,6 +674,34 @@ async function recoverInterruptedJobs(sql) {
   return results.reduce((total, rows) => total + rows.length, 0);
 }
 
+let lastTransientReportAt = 0;
+
+async function reportWorkerError(sql, error, details) {
+  await captureError(sql, {
+    source: "worker",
+    severity: "error",
+    error,
+    ...details,
+    context: {
+      ...(details.context ?? {}),
+      release: process.env.APP_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    },
+  });
+}
+
+async function reportTransient(sql, error) {
+  const now = Date.now();
+  if (now - lastTransientReportAt < 5 * 60_000) return;
+  lastTransientReportAt = now;
+  await captureError(sql, {
+    source: "worker",
+    severity: "warning",
+    error,
+    action: "worker-loop",
+    context: { note: "Transient worker loop failure; grouped for five minutes." },
+  });
+}
+
 async function main() {
   loadEnv();
   const sql = neon(required("DATABASE_URL"));
@@ -682,6 +711,8 @@ async function main() {
   console.log(`worker: polling ${once ? "once" : "every 10s"}`);
   const recovered = await recoverInterruptedJobs(sql);
   if (recovered > 0) console.log(`worker: requeued ${recovered} interrupted job(s)`);
+  const flushed = await flushErrorSpool(sql);
+  if (flushed > 0) console.log(`worker: flushed ${flushed} error report(s)`);
 
   do {
     try {
@@ -691,6 +722,12 @@ async function main() {
         await processDerivativeJob(derivativeJob);
       } catch (error) {
         await failDerivativeJob(sql, derivativeJob, error);
+        await reportWorkerError(sql, error, {
+          jobType: "derivative",
+          jobId: derivativeJob.id,
+          mediaId: derivativeJob.media_asset_id,
+          context: { attempts: derivativeJob.attempts },
+        });
       }
       continue;
     }
@@ -701,6 +738,12 @@ async function main() {
         await processTranscriptionJob(transcriptionJob);
       } catch (error) {
         await failTranscriptionJob(sql, transcriptionJob, error);
+        await reportWorkerError(sql, error, {
+          jobType: "transcription",
+          jobId: transcriptionJob.id,
+          mediaId: transcriptionJob.media_asset_id,
+          context: { attempts: transcriptionJob.attempts },
+        });
       }
       continue;
     }
@@ -711,6 +754,12 @@ async function main() {
         await processTimelineJob(timelineJob);
       } catch (error) {
         await failTimelineJob(sql, timelineJob, error);
+        await reportWorkerError(sql, error, {
+          jobType: "timeline",
+          jobId: timelineJob.id,
+          timelineId: timelineJob.timeline_id,
+          context: { attempts: timelineJob.attempts },
+        });
       }
       continue;
     }
@@ -721,6 +770,12 @@ async function main() {
         await processJob(job);
       } catch (error) {
         await failJob(sql, job, error);
+        await reportWorkerError(sql, error, {
+          jobType: "storyboard",
+          jobId: job.id,
+          projectId: job.project_id,
+          context: { attempts: job.attempts, draftId: job.draft_id },
+        });
       }
     } else if (once) {
       console.log("worker: no queued jobs");
@@ -729,13 +784,26 @@ async function main() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`worker: transient error: ${message}`);
+      await reportTransient(sql, error);
       if (once) throw error;
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 10_000));
     }
   } while (!once);
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error(`worker: fatal: ${error.message}`);
+  try {
+    const sql = neon(required("DATABASE_URL"));
+    await captureError(sql, {
+      source: "worker",
+      severity: "critical",
+      error,
+      action: "worker-fatal",
+      context: { note: "Worker main process exited." },
+    });
+  } catch {
+    // The error ledger already logs its own failure when storage is unavailable.
+  }
   process.exitCode = 1;
 });

@@ -27,3 +27,4 @@ tools/
 /contabo ssh.txt
 .worker-control-token
 .wrangler/
+.worker-error-spool.ndjson

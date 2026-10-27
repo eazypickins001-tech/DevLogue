@@ -132,6 +132,30 @@ export const renderStatus = pgEnum("render_status", [
   "failed",
 ]);
 
+export const errorSeverity = pgEnum("error_severity", [
+  "info",
+  "warning",
+  "error",
+  "critical",
+]);
+
+export const errorIncidentStatus = pgEnum("error_incident_status", [
+  "new",
+  "acknowledged",
+  "investigating",
+  "fixed",
+  "verified",
+  "archived",
+  "wont_fix",
+]);
+
+export const errorSource = pgEnum("error_source", [
+  "server",
+  "client",
+  "worker",
+  "smoke",
+  "manual",
+]);
 export type StoryboardScenePayload = {
   index: number;
   startSec: number;
@@ -746,4 +770,95 @@ export const renderJobs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("render_jobs_draft_idx").on(table.draftId, table.createdAt)],
+);
+
+export const errorIncidents = pgTable(
+  "error_incidents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fingerprint: text("fingerprint").notNull(),
+    title: text("title").notNull(),
+    severity: errorSeverity("severity").notNull().default("error"),
+    status: errorIncidentStatus("status").notNull().default("new"),
+    source: errorSource("source").notNull().default("server"),
+    environment: text("environment"),
+    release: text("release"),
+    route: text("route"),
+    action: text("action"),
+    errorName: text("error_name"),
+    errorMessage: text("error_message").notNull(),
+    topFrame: text("top_frame"),
+    cause: text("cause"),
+    context: jsonb("context").$type<Record<string, unknown>>(),
+    occurrenceCount: integer("occurrence_count").notNull().default(1),
+    regressionCount: integer("regression_count").notNull().default(0),
+    fixCommit: text("fix_commit"),
+    resolutionSummary: text("resolution_summary"),
+    verificationMethod: text("verification_method"),
+    verificationNotes: text("verification_notes"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    fixedAt: timestamp("fixed_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("error_incidents_fingerprint_unique").on(table.fingerprint),
+    index("error_incidents_status_seen_idx").on(table.status, table.lastSeenAt),
+    index("error_incidents_severity_seen_idx").on(table.severity, table.lastSeenAt),
+  ],
+);
+
+export const errorEvents = pgTable(
+  "error_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => errorIncidents.id, { onDelete: "cascade" }),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    source: errorSource("source").notNull().default("server"),
+    severity: errorSeverity("severity").notNull().default("error"),
+    environment: text("environment"),
+    release: text("release"),
+    route: text("route"),
+    action: text("action"),
+    requestId: text("request_id"),
+    traceId: text("trace_id"),
+    jobType: text("job_type"),
+    jobId: text("job_id"),
+    projectId: uuid("project_id"),
+    sessionId: uuid("session_id"),
+    timelineId: uuid("timeline_id"),
+    mediaId: uuid("media_id"),
+    errorName: text("error_name"),
+    message: text("message").notNull(),
+    stack: text("stack"),
+    cause: text("cause"),
+    context: jsonb("context").$type<Record<string, unknown>>(),
+    breadcrumbs: jsonb("breadcrumbs").$type<Record<string, unknown>[]>(),
+    userAgent: text("user_agent"),
+    redacted: boolean("redacted").notNull().default(true),
+  },
+  (table) => [
+    index("error_events_incident_occurred_idx").on(table.incidentId, table.occurredAt),
+    index("error_events_occurred_idx").on(table.occurredAt),
+  ],
+);
+
+export const errorIncidentNotes = pgTable(
+  "error_incident_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => errorIncidents.id, { onDelete: "cascade" }),
+    actor: text("actor").notNull().default("owner"),
+    action: text("action").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("error_incident_notes_incident_created_idx").on(table.incidentId, table.createdAt)],
 );
