@@ -45,7 +45,7 @@ export function Nav() {
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             aria-controls="nav-links"
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 xl:hidden"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 min-[1400px]:hidden"
           >
             Menu
           </button>
@@ -53,7 +53,7 @@ export function Nav() {
 
         <ul
           id="nav-links"
-          className={`${open ? "flex" : "hidden"} absolute left-0 right-0 top-[57px] z-20 flex-col gap-1 border-b border-slate-200 bg-white p-3 shadow-sm xl:static xl:z-auto xl:flex xl:flex-row xl:items-center xl:gap-0.5 xl:border-0 xl:p-0 xl:shadow-none`}
+          className={`${open ? "flex" : "hidden"} absolute left-0 right-0 top-[57px] z-20 flex-col gap-1 border-b border-slate-200 bg-white p-3 shadow-sm min-[1400px]:static min-[1400px]:z-auto min-[1400px]:flex min-[1400px]:flex-row min-[1400px]:items-center min-[1400px]:gap-0.5 min-[1400px]:border-0 min-[1400px]:p-0 min-[1400px]:shadow-none`}
         >
           {LINKS.map((link) => (
             <li key={link.href}>
