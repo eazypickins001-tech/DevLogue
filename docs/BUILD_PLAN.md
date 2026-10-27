@@ -198,3 +198,19 @@ When the session approaches its practical context limit:
 5. List blockers and environment variables by name only.
 6. Record the exact next command or code change.
 7. Never include secrets, tokens or passwords in the handover.
+
+### Phase 7 - Self-reporting incident ledger
+
+Goal: every failure becomes a durable, searchable, redacted record with a fix and verification history.
+
+- [x] Add grouped incidents and raw occurrence events in Postgres.
+- [x] Add server, client, worker, smoke and manual capture paths.
+- [x] Add fingerprinting, redaction and regression detection.
+- [x] Add `/operations/errors` list/detail pages and manual report form.
+- [x] Add Markdown and JSON AI debug briefs with copy action.
+- [x] Add fixed/verified/archive lifecycle and audit notes.
+- [x] Add worker DB-failure spool and transient-error grouping.
+- [x] Add 90-day event-prune command.
+- [ ] Add automatic event-prune scheduling.
+- [ ] Add optional email/Telegram incident digest.
+- [ ] Add lifecycle/regression integration tests against a disposable database.

@@ -212,8 +212,13 @@ export default async function SettingsPage() {
             <code className="font-mono">docs/PROJECT_PROMPT.md</code>.
           </p>
           <p>
+            <Link className={linkClass} href="/operations/errors">
+              Incident ledger and AI debug briefs
+            </Link>
+          </p>
+          <p>
             <Link className={linkClass} href="/integrations">
-              Connection checks →
+              Connection checks
             </Link>
           </p>
         </div>

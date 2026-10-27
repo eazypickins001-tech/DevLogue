@@ -2,7 +2,7 @@
 
 Build in public from real work. DevLogue turns documented development sessions into evidence-based social content, storyboards and HighLevel draft posts — without inventing results.
 
-The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md). Failure history is documented in [`docs/INCIDENT_LEDGER.md`](docs/INCIDENT_LEDGER.md).
 
 ## What works today
 
@@ -26,7 +26,8 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - In-app help and user guide (`/help`) covering recording, editing, captions, rendering, publishing, storage and troubleshooting.
 - Light, dark and system theme modes with a persisted preference.
 - Public landing page at `/`, responsive app shell and basic PWA installation with offline fallback.
-- Worker control panel on Video Production: start/stop the worker through a token-protected control service.
+- Worker control panel on Video Production: start/stop the worker through a token-protected control service, with status pills, log tail, retry and stale-job recovery.
+- Self-reporting incident ledger at `/operations/errors`: fingerprinting, redacted context, audit trail, regression detection, manual reports, smoke/worker/server/client capture, and Markdown/JSON AI debug briefs.
 
 Verified end-to-end with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → removal → cleanup. A real scheduled post was also created against the Ai4Beginners Facebook page (10:00 Africa/Kigali → 08:00Z), confirmed as `scheduled` in HighLevel, then deleted before publication.
 
@@ -265,7 +266,7 @@ WORKER_CONTROL_URL=http://127.0.0.1:4100
 WORKER_CONTROL_TOKEN=a-long-random-token
 ```
 
-On Vercel, `WORKER_CONTROL_URL` must be a public HTTPS endpoint (for example a Cloudflare Tunnel to the control service) and the token must be kept secret. The control service listens on port 4100 and exposes `/health`, `/status`, `/start` and `/stop`. Set `WORKER_CONTROL_AUTOSTART=true` to start the worker with the service. Use the **Worker control** panel on the Video Production page.
+On Vercel, `WORKER_CONTROL_URL` must be a public HTTPS endpoint (for example a Cloudflare Tunnel to the control service) and the token must be kept secret. The control service listens on port 4100 and exposes `/health`, `/status`, `/log`, `/diag`, `/start` and `/stop`. Set `WORKER_CONTROL_AUTOSTART=true` to start the worker with the service. Use the **Worker control** panel on the Video Production page.
 
 ## Quality gates
 
@@ -302,7 +303,8 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - Uploads are private; reads require an authenticated session and return a short-lived signed URL.
 - Publishing media is exposed only through a short-lived, HMAC-signed handoff URL for HighLevel.
 - Deleting a project cascades sessions, evidence, drafts, timelines and render jobs in Postgres, and removes its media, renders, thumbnails, waveforms and pending multipart uploads from R2. Deleting a timeline removes its rendered video but keeps raw recording tracks.
-- No automatic purge job. Delete data explicitly.
+- No automatic purge job for application media. Error events use the 90-day `pnpm prune:errors` retention command; incidents and audit history are kept.
+- Incident capture is local and private; no external error monitoring SaaS is required.
 
 ## Known limitations
 

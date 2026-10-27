@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "smoke": "node scripts/smoke-e2e.mjs",
+    "prune:errors": "node scripts/prune-error-events.mjs",
     "worker": "node scripts/render-worker.mjs",
     "worker:once": "node scripts/render-worker.mjs --once",
     "worker:control": "node scripts/worker-control.mjs",
