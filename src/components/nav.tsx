@@ -2,76 +2,204 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/projects", label: "Projects" },
-  { href: "/sessions", label: "Sessions" },
-  { href: "/record", label: "Record" },
-  { href: "/timelines", label: "Timelines" },
-  { href: "/studio", label: "Studio" },
-  { href: "/video", label: "Worker" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/feedback", label: "Feedback" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/integrations", label: "Integrations" },
-  { href: "/settings", label: "Settings" },
-  { href: "/operations/errors", label: "Errors" },
-  { href: "/help", label: "Help" },
+type NavItem = { href: string; label: string };
+type NavGroup = { label: string; items: NavItem[] };
+
+const GROUPS: NavGroup[] = [
+  {
+    label: "Create",
+    items: [
+      { href: "/projects", label: "Projects" },
+      { href: "/sessions", label: "Sessions" },
+      { href: "/record", label: "Record" },
+    ],
+  },
+  {
+    label: "Studio",
+    items: [
+      { href: "/studio", label: "Studio" },
+      { href: "/timelines", label: "Timelines" },
+      { href: "/video", label: "Worker" },
+    ],
+  },
+  {
+    label: "Publish",
+    items: [
+      { href: "/calendar", label: "Calendar" },
+      { href: "/integrations", label: "Integrations" },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { href: "/feedback", label: "Feedback" },
+      { href: "/analytics", label: "Analytics" },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/operations/errors", label: "Incidents" },
+      { href: "/operations/storage", label: "Storage" },
+      { href: "/settings", label: "Settings" },
+      { href: "/help", label: "Help" },
+    ],
+  },
 ];
 
 export function Nav() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const desktopRef = useRef<HTMLDivElement>(null);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const activeGroup = GROUPS.find((group) => group.items.some((item) => isActive(item.href)))?.label;
+
+  useEffect(() => {
+    if (!openGroup) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (desktopRef.current && !desktopRef.current.contains(event.target as Node)) {
+        setOpenGroup(null);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenGroup(null);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openGroup]);
 
   return (
     <nav aria-label="Main" className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/dashboard" className="flex items-center gap-2 no-underline">
+      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
+        <Link href="/dashboard" className="flex shrink-0 items-center gap-2 no-underline">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-sm font-bold text-white">
             DL
           </span>
           <span className="text-base font-semibold tracking-tight text-slate-900">DevLogue</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 min-[1400px]:order-3">
           <ThemeToggle />
           <button
             type="button"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-            aria-controls="nav-links"
+            onClick={() => setMobileOpen((value) => !value)}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav"
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 min-[1400px]:hidden"
           >
-            Menu
+            {mobileOpen ? "Close" : "Menu"}
           </button>
         </div>
 
-        <ul
-          id="nav-links"
-          className={`${open ? "flex" : "hidden"} absolute left-0 right-0 top-[57px] z-20 flex-col gap-1 border-b border-slate-200 bg-white p-3 shadow-sm min-[1400px]:static min-[1400px]:z-auto min-[1400px]:flex min-[1400px]:flex-row min-[1400px]:items-center min-[1400px]:gap-0.5 min-[1400px]:border-0 min-[1400px]:p-0 min-[1400px]:shadow-none`}
-        >
-          {LINKS.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                onClick={() => setOpen(false)}
-                aria-current={isActive(link.href) ? "page" : undefined}
-                className={`block rounded-md px-2.5 py-2 text-sm no-underline transition ${
-                  isActive(link.href)
+        <div ref={desktopRef} className="relative hidden min-[1400px]:order-2 min-[1400px]:flex min-[1400px]:items-center min-[1400px]:gap-0.5">
+          <Link
+            href="/dashboard"
+            aria-current={isActive("/dashboard") ? "page" : undefined}
+            className={`rounded-md px-2.5 py-2 text-sm no-underline transition ${
+              isActive("/dashboard")
+                ? "bg-slate-100 font-medium text-slate-900"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            Dashboard
+          </Link>
+          {GROUPS.map((group) => (
+            <div key={group.label} className="relative">
+              <button
+                type="button"
+                aria-expanded={openGroup === group.label}
+                aria-haspopup="true"
+                onClick={() => setOpenGroup((current) => (current === group.label ? null : group.label))}
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-2 text-sm transition ${
+                  activeGroup === group.label
                     ? "bg-slate-100 font-medium text-slate-900"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                {link.label}
-              </Link>
-            </li>
+                {group.label}
+                <span aria-hidden="true" className="text-[10px] text-slate-400">
+                  v
+                </span>
+              </button>
+              {openGroup === group.label ? (
+                <div className="absolute left-0 top-full z-40 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  <ul className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setOpenGroup(null)}
+                          aria-current={isActive(item.href) ? "page" : undefined}
+                          className={`block rounded-lg px-3 py-2 text-sm no-underline ${
+                            isActive(item.href)
+                              ? "bg-slate-100 font-medium text-slate-900"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
           ))}
-        </ul>
+        </div>
+
+        {mobileOpen ? (
+          <div
+            id="mobile-nav"
+            className="absolute left-0 right-0 top-[57px] z-30 max-h-[calc(100vh-57px)] overflow-y-auto border-b border-slate-200 bg-white p-4 shadow-sm min-[1400px]:hidden"
+          >
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileOpen(false)}
+              aria-current={isActive("/dashboard") ? "page" : undefined}
+              className={`block rounded-lg px-3 py-2 text-sm no-underline ${
+                isActive("/dashboard")
+                  ? "bg-slate-100 font-medium text-slate-900"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Dashboard
+            </Link>
+            {GROUPS.map((group) => (
+              <div key={group.label} className="mt-4">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  {group.label}
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {group.items.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        aria-current={isActive(item.href) ? "page" : undefined}
+                        className={`block rounded-lg px-3 py-2 text-sm no-underline ${
+                          isActive(item.href)
+                            ? "bg-slate-100 font-medium text-slate-900"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </nav>
   );

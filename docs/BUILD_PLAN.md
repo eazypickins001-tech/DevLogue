@@ -135,7 +135,7 @@ Goal: consistent UI that works on desktop and mobile.
 - [ ] Introduce design tokens: color, spacing, typography, radius, shadows.
 - [ ] Replace CSS override dark mode with token-based themes.
 - [ ] Build desktop sidebar and mobile bottom navigation.
-- [ ] Group tools: Create, Studio, Publish, Insights, Settings.
+- [x] Group tools: Create, Studio, Publish, Insights, Settings.
 - [ ] Improve forms, tables and timeline touch targets.
 - [ ] Add safe-area handling and mobile record flow.
 - [x] Build-version the service worker or switch app chunks to network-first.
