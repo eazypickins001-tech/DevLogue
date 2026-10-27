@@ -836,9 +836,14 @@ export function TimelineEditor({
               {assets.map((asset) => (
                 <li key={asset.id} className="flex items-center justify-between gap-3">
                   <span className="truncate">{asset.filename}</span>
-                  <Link className="shrink-0 text-xs font-medium text-indigo-700" href={asset.url} target="_blank">
+                  <a
+                    className="shrink-0 text-xs font-medium text-indigo-700"
+                    href={asset.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Open
-                  </Link>
+                  </a>
                 </li>
               ))}
             </ul>
