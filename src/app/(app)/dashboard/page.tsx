@@ -2,7 +2,7 @@ import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, Card, CardHeader, EmptyState, FormMessage, PageHeader, SetupNotice, Stat, buttonPrimary, linkClass, mutedLinkClass } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
-import { getDashboardData } from "@/lib/queries";
+import { getDashboardData, getErrorIncidentCounts } from "@/lib/queries";
 import { DRAFT_STATUS_LABELS, SESSION_STATUS_LABELS, formatDate, formatDateTime } from "@/lib/labels";
 import { CONTENT_FORMATS, type ContentFormatValue } from "@/lib/domain/content";
 import { getWorkerSnapshot } from "@/lib/worker-status";
@@ -38,7 +38,13 @@ export default async function DashboardPage({
   }
 
   const owner = await getOwner();
-  const [data, worker] = await Promise.all([getDashboardData(owner.id), getWorkerSnapshot()]);
+  const [data, worker, incidentCounts] = await Promise.all([
+    getDashboardData(owner.id),
+    getWorkerSnapshot(),
+    getErrorIncidentCounts(),
+  ]);
+  const openIncidents =
+    (incidentCounts.new ?? 0) + (incidentCounts.acknowledged ?? 0) + (incidentCounts.investigating ?? 0);
 
   return (
     <div className="space-y-6">
@@ -58,6 +64,17 @@ export default async function DashboardPage({
         }
       />
       <FormMessage message={message} tone="success" />
+
+      {openIncidents > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p>
+            <strong>{openIncidents} open incident{openIncidents === 1 ? "" : "s"}</strong> need attention.
+          </p>
+          <Link className="font-medium underline" href="/operations/errors">
+            Open incident ledger
+          </Link>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
         <Stat label="Projects" value={data.counts.projectCount} />
