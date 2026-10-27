@@ -1,0 +1,39 @@
+﻿name: Read-only smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Configure smoke
+        id: config
+        env:
+          BASE_URL: ${{ vars.SMOKE_BASE_URL }}
+          PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$PASSWORD" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Read-only smoke skipped: set repository variable SMOKE_BASE_URL and secret SMOKE_PASSWORD."
+          fi
+      - name: Install Playwright
+        if: steps.config.outputs.skip != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Run read-only smoke
+        if: steps.config.outputs.skip != 'true'
+        env:
+          SMOKE_BASE_URL: ${{ vars.SMOKE_BASE_URL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: pnpm smoke:readonly

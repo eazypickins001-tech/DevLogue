@@ -284,6 +284,15 @@ Integration smoke (needs `.env.local`, a running server on port 3000, valid R2/A
 pnpm smoke
 ```
 
+Read-only production smoke (login, route health, preview, worker panel, PWA and mobile overflow; no mutations):
+
+```powershell
+$env:SMOKE_BASE_URL="https://devlogue-prod.vercel.app"
+pnpm smoke:readonly
+```
+
+The `Read-only smoke` GitHub workflow runs on a schedule when the repository variable `SMOKE_BASE_URL` and secret `SMOKE_PASSWORD` are configured.
+
 ## Deployment (Vercel)
 
 1. Push the repository to GitHub.

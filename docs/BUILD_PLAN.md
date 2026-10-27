@@ -155,6 +155,7 @@ Goal: catch regressions before users do.
 
 - [x] Add CI for lint, typecheck, tests and build.
 - [ ] Add Playwright E2E for record -> upload -> render -> draft -> publish.
+- [x] Add CI-backed read-only Playwright smoke for auth, routes, preview, worker, PWA and mobile.
 - [ ] Add multipart/resume E2E.
 - [ ] Add project/timeline deletion E2E with R2 assertions.
 - [ ] Add worker control E2E with a test control service.
