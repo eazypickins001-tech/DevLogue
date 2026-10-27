@@ -191,6 +191,9 @@ export default async function SettingsPage() {
               Sizes are recorded when assets are uploaded. Thumbnails and waveforms live under their
               parent asset; this summary does not list R2 objects orphaned outside the database.
             </p>
+            <Link className={linkClass} href="/operations/storage">
+              Open R2 storage audit
+            </Link>
           </div>
         </Card>
       ) : null}

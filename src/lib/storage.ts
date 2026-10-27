@@ -1,6 +1,7 @@
 import "server-only";
 
 import { AwsClient } from "aws4fetch";
+import { parseListObjectsXml, type R2ListObject } from "./storage-audit";
 
 export function isStorageConfigured(): boolean {
   return Boolean(
@@ -122,3 +123,26 @@ export function buildMediaKey(userId: string, filename: string): string {
 }
 
 export { settings as storageSettings, client as storageClient, objectUrl as storageObjectUrl };
+
+export async function listR2Objects(prefix = "", maxPages = 30): Promise<R2ListObject[]> {
+  const objects: R2ListObject[] = [];
+  let token: string | null = null;
+  for (let page = 0; page < maxPages; page += 1) {
+    const url = new URL(objectUrl(""));
+    url.searchParams.set("list-type", "2");
+    url.searchParams.set("max-keys", "1000");
+    if (prefix) url.searchParams.set("prefix", prefix);
+    if (token) url.searchParams.set("continuation-token", token);
+    const signed = await client().sign(url.toString(), {
+      method: "GET",
+      aws: { signQuery: true },
+    });
+    const response = await fetch(signed.url, { method: "GET", headers: signed.headers });
+    if (!response.ok) throw new Error(`R2 list failed with status ${response.status}.`);
+    const parsed = parseListObjectsXml(await response.text());
+    objects.push(...parsed.objects);
+    if (!parsed.truncated || !parsed.nextToken) break;
+    token = parsed.nextToken;
+  }
+  return objects;
+}

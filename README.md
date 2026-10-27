@@ -2,7 +2,7 @@
 
 Build in public from real work. DevLogue turns documented development sessions into evidence-based social content, storyboards and HighLevel draft posts — without inventing results.
 
-The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md). Failure history is documented in [`docs/INCIDENT_LEDGER.md`](docs/INCIDENT_LEDGER.md).
+The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md). Failure history is documented in [`docs/INCIDENT_LEDGER.md`](docs/INCIDENT_LEDGER.md). Storage cleanup rules are in [`docs/STORAGE_RETENTION.md`](docs/STORAGE_RETENTION.md).
 
 ## What works today
 
@@ -28,6 +28,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Public landing page at `/`, responsive app shell and basic PWA installation with offline fallback.
 - Worker control panel on Video Production: start/stop the worker through a token-protected control service, with status pills, log tail, retry and stale-job recovery.
 - Self-reporting incident ledger at `/operations/errors`: fingerprinting, redacted context, audit trail, regression detection, manual reports, smoke/worker/server/client capture, and Markdown/JSON AI debug briefs.
+- R2 storage audit at `/operations/storage`: dry-run orphan scan against database keys, explicit confirmed deletion, and storage-by-project/kind visibility.
 
 Verified end-to-end with Playwright: login → project → GHL account selection → session → evidence → AI analysis → content generation → approval → HighLevel draft creation → removal → cleanup. A real scheduled post was also created against the Ai4Beginners Facebook page (10:00 Africa/Kigali → 08:00Z), confirmed as `scheduled` in HighLevel, then deleted before publication.
 

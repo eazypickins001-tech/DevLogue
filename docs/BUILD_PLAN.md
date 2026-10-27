@@ -116,11 +116,11 @@ Acceptance:
 Goal: users can understand and control R2 usage.
 
 - [ ] Add storage usage by project, session, raw media, renders, thumbnails and waveforms.
-- [ ] Add orphan R2 sweep for deleted rows.
+- [x] Add orphan R2 sweep for deleted rows.
 - [ ] Add retention policy for raw tracks and renders.
 - [ ] Add bulk cleanup for completed projects.
-- [ ] Add confirmation and audit details for deletion.
-- [ ] Add R2 lifecycle recommendation/documentation.
+- [x] Add confirmation details for orphan deletion.
+- [x] Add R2 lifecycle recommendation/documentation.
 - [ ] Show storage warnings before large recordings/uploads.
 
 Acceptance:
