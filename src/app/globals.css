@@ -214,3 +214,14 @@ a {
 .dark .focus\:ring-slate-300:focus {
   --tw-ring-color: #475569;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -5,8 +5,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(SHELL))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(SHELL)),
   );
 });
 
@@ -44,4 +43,8 @@ self.addEventListener("fetch", (event) => {
         .catch(() => caches.match(request)),
     );
   }
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") void self.skipWaiting();
 });

@@ -10,8 +10,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-slate-900 focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        Skip to content
+      </a>
       <Nav />
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
+      <main id="main-content" className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex items-center justify-between text-sm">
           <Link href="/sessions/new" className="font-medium text-slate-700 hover:text-slate-900">
             + Capture a build session
@@ -31,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link className="font-medium text-slate-600 hover:text-slate-900" href="/help">Help and user guide</Link>
           </div>
         </footer>
-      </div>
+      </main>
     </div>
   );
 }
