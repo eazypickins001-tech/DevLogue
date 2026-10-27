@@ -3,7 +3,8 @@ import { isDatabaseConfigured } from "@/db";
 import { PageHeader, SetupNotice, linkClass } from "@/components/ui";
 import { RecorderClient } from "@/components/recorder/recorder-client";
 import { getOwner, requireSession } from "@/lib/auth";
-import { listSessions } from "@/lib/queries";
+import { getStorageSummary, listSessions } from "@/lib/queries";
+import { formatStorageBytes, storageWarningLevel, storageWarningThreshold } from "@/lib/storage-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,9 @@ export default async function RecordPage({
   }
 
   const owner = await getOwner();
-  const rows = await listSessions(owner.id);
+  const [rows, storage] = await Promise.all([listSessions(owner.id), getStorageSummary(owner.id)]);
+  const warningThreshold = storageWarningThreshold();
+  const storageWarning = storageWarningLevel(storage.totalBytes, warningThreshold) === "warning";
   const sessions = rows.map(({ session, projectName }) => ({
     id: session.id,
     title: session.title,
@@ -46,6 +49,20 @@ export default async function RecordPage({
           </Link>
         }
       />
+      {storageWarning ? (
+        <SetupNotice title="Storage warning">
+          <p>
+            Media storage is {formatStorageBytes(storage.totalBytes)}, above the configured{" "}
+            {formatStorageBytes(warningThreshold)} warning threshold. Large recordings can fill the
+            bucket.
+          </p>
+          <p>
+            <Link className={linkClass} href="/operations/storage">
+              Review storage and clean up R2
+            </Link>
+          </p>
+        </SetupNotice>
+      ) : null}
       {sessions.length === 0 ? (
         <SetupNotice title="Create a destination session first">
           <p>

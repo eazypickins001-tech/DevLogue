@@ -121,7 +121,7 @@ Goal: users can understand and control R2 usage.
 - [ ] Add bulk cleanup for completed projects.
 - [x] Add confirmation details for orphan deletion.
 - [x] Add R2 lifecycle recommendation/documentation.
-- [ ] Show storage warnings before large recordings/uploads.
+- [x] Show storage warnings before large recordings/uploads.
 
 Acceptance:
 

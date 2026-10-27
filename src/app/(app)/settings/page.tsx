@@ -4,6 +4,7 @@ import { isDatabaseConfigured } from "@/db";
 import { getServiceStatuses, aiProviderName } from "@/lib/env";
 import { getOwner, ownerEmail } from "@/lib/auth";
 import { getStorageSummary, type StorageSummary } from "@/lib/queries";
+import { storageWarningLevel, storageWarningThreshold } from "@/lib/storage-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,9 @@ export default async function SettingsPage() {
   if (isDatabaseConfigured()) {
     storage = await getStorageSummary((await getOwner()).id);
   }
+  const storageWarning = storage
+    ? storageWarningLevel(storage.totalBytes, storageWarningThreshold()) === "warning"
+    : false;
 
   return (
     <div className="space-y-6">
@@ -156,6 +160,15 @@ export default async function SettingsPage() {
               </p>
               <p className="text-xs text-slate-500">{storage.assetCount} media assets</p>
             </div>
+            {storageWarning ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Storage is above the configured warning threshold.{" "}
+                <Link className="font-medium underline" href="/operations/storage">
+                  Review and clean up
+                </Link>
+                .
+              </p>
+            ) : null}
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {storage.byKind.map((row) => (
                 <div key={row.kind} className="rounded-lg border border-slate-200 p-3">

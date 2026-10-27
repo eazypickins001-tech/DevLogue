@@ -19,6 +19,10 @@ The audit compares R2 keys with:
 
 Objects outside those prefixes are ignored. Database-backed keys are never treated as orphans.
 
+## Warning threshold
+
+Set `STORAGE_WARNING_BYTES` (default 8 GiB) to show storage warnings on Record and Settings before the bucket becomes full.
+
 ## Safe cleanup
 
 1. Click **Scan R2 for orphans**. This is read-only.
