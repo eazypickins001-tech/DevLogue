@@ -160,8 +160,8 @@ Goal: catch regressions before users do.
 - [x] Add project/timeline deletion E2E with R2 assertions. `pnpm smoke:deletion` renders a timeline, verifies the render object is removed while raw tracks survive, then verifies project deletion removes every R2 object and row. Also fixed `/timelines` dropping success/error messages.
 - [x] Add worker control E2E with a test control service. `pnpm smoke:worker` drives the control service over HTTP: auth rejection, start idempotency, log tail, database diagnostic and stop. Also fixed `/video` dropping retry messages. Next 16 refuses a second dev server, so the UI is not driven directly.
 - [x] Add PWA/offline checks. Covered by the read-only smoke offline step.
-- [ ] Add backup/restore runbook.
-- [ ] Add error monitoring and structured logs.
+- [x] Add backup/restore runbook. See `docs/BACKUP_RESTORE.md`: Neon PITR and dumps, R2 sync, secret rotation, verification queries and incident playbooks.
+- [x] Add error monitoring and structured logs. Failures are captured as structured, redacted incidents (source, route, action, job ids, context, breadcrumbs, environment, release) from server requests, client crashes, the worker and smoke scripts, with fingerprinting and regression tracking. Free-form console output stays for humans; the ledger is the machine-readable record.
 - [ ] Add rate limiting and auth hardening if multi-user is added.
 
 Acceptance:

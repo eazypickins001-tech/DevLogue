@@ -2,7 +2,7 @@
 
 Build in public from real work. DevLogue turns documented development sessions into evidence-based social content, storyboards and HighLevel draft posts — without inventing results.
 
-The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md). Failure history is documented in [`docs/INCIDENT_LEDGER.md`](docs/INCIDENT_LEDGER.md). Storage cleanup rules are in [`docs/STORAGE_RETENTION.md`](docs/STORAGE_RETENTION.md).
+The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). Architecture decisions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The risk register and ordered build plan are in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md). Failure history is documented in [`docs/INCIDENT_LEDGER.md`](docs/INCIDENT_LEDGER.md). Storage cleanup rules are in [`docs/STORAGE_RETENTION.md`](docs/STORAGE_RETENTION.md). Backup and restore steps are in [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md).
 
 ## What works today
 
