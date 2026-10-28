@@ -296,6 +296,12 @@ Multipart/resume smoke (generates a ~38MB clip with ffmpeg, interrupts the uploa
 pnpm smoke:multipart
 ```
 
+Deletion smoke (records and renders a clip, deletes the timeline and checks the rendered object is gone while raw tracks remain, then deletes the project and checks every R2 object is gone):
+
+```powershell
+pnpm smoke:deletion
+```
+
 Read-only production smoke (login, route health, preview, worker panel, PWA, offline fallback, accessibility and mobile overflow; no mutations):
 
 ```powershell

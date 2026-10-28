@@ -157,7 +157,7 @@ Goal: catch regressions before users do.
 - [x] Add Playwright E2E for record -> upload -> render -> draft -> publish. `pnpm smoke:workflow` records with fake media devices, uploads tracks, runs the render worker, creates a draft and verifies the publishing handoff. Live mode only verifies the handoff form; test mode creates and removes a real HighLevel draft. Local-only because it needs the worker and ffmpeg.
 - [x] Add CI-backed read-only Playwright smoke for auth, routes, preview, worker, PWA, offline, accessibility and mobile.
 - [x] Add multipart/resume E2E. `pnpm smoke:multipart` generates a 38MB clip with ffmpeg, reloads mid-upload, resumes from the stored parts and checks the registered asset. Local-only because it needs ffmpeg and real R2 writes.
-- [ ] Add project/timeline deletion E2E with R2 assertions.
+- [x] Add project/timeline deletion E2E with R2 assertions. `pnpm smoke:deletion` renders a timeline, verifies the render object is removed while raw tracks survive, then verifies project deletion removes every R2 object and row. Also fixed `/timelines` dropping success/error messages.
 - [ ] Add worker control E2E with a test control service.
 - [x] Add PWA/offline checks. Covered by the read-only smoke offline step.
 - [ ] Add backup/restore runbook.

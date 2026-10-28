@@ -19,6 +19,7 @@ Thumbs.db
 .smoke-failure.png
 .smoke-workflow-failure.png
 .smoke-multipart-failure.png
+.smoke-deletion-failure.png
 .vercel
 *-failure.png
 .dev-server.pid

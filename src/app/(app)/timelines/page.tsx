@@ -11,8 +11,13 @@ import { formatDuration } from "@/lib/recording/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function TimelinesPage() {
+export default async function TimelinesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string; error?: string }>;
+}) {
   await requireSession();
+  const { message, error } = await searchParams;
 
   if (!isDatabaseConfigured()) {
     return (
@@ -43,6 +48,16 @@ export default async function TimelinesPage() {
           </>
         }
       />
+      {message ? (
+        <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {message}
+        </div>
+      ) : null}
+      {error ? (
+        <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {error}
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center">
           <h2 className="text-sm font-semibold text-slate-800">No timelines yet</h2>
