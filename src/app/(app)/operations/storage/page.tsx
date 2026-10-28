@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Card, CardHeader, PageHeader, SetupNotice, linkClass } from "@/components/ui";
+import { RetentionCleanup } from "@/components/retention-cleanup";
 import { StorageAudit } from "@/components/storage-audit";
 import { requireSession } from "@/lib/auth";
+import { mediaRetentionDays } from "@/lib/storage-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +36,23 @@ export default async function StoragePage() {
         </div>
       </Card>
       <Card>
+        <CardHeader
+          title="Retention cleanup"
+          description="Preview and remove old raw recording tracks that no timeline or storyboard references."
+        />
+        <div className="p-5">
+          <RetentionCleanup retentionDays={mediaRetentionDays()} />
+        </div>
+      </Card>
+      <Card>
         <CardHeader title="Safety model" />
         <div className="space-y-2 p-5 text-sm text-slate-700">
           <p>Scanning is read-only. The delete action re-reads the database before removing keys.</p>
           <p>Only keys under media/, renders/ and derivatives/ are eligible. Other bucket objects are ignored.</p>
+          <p>
+            Retention cleanup only removes raw recording tracks older than MEDIA_RETENTION_DAYS that
+            no timeline or storyboard references. Renders and uploaded evidence media are kept.
+          </p>
           <p>Deletion is irreversible. Take an R2 snapshot or lifecycle backup before broad cleanup.</p>
         </div>
       </Card>

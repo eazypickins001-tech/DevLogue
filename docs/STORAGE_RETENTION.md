@@ -4,7 +4,8 @@ DevLogue stores raw recordings, renders, thumbnails and waveforms in Cloudflare 
 
 ## Visibility
 
-- **Settings -> Storage** shows recorded bytes by media kind and largest projects. Sizes come from `media_assets`.
+- **Settings -> Storage** shows recorded bytes by media kind, largest projects and largest sessions. Sizes come from `media_assets`.
+- **Project delete** shows how many recorded bytes and assets will be removed from R2 before you confirm.
 - **Settings -> Open R2 storage audit** (`/operations/storage`) lists live R2 objects under:
   - `media/`
   - `renders/`
@@ -22,6 +23,18 @@ Objects outside those prefixes are ignored. Database-backed keys are never treat
 ## Warning threshold
 
 Set `STORAGE_WARNING_BYTES` (default 8 GiB) to show storage warnings on Record and Settings before the bucket becomes full.
+
+## Retention cleanup
+
+Set `MEDIA_RETENTION_DAYS` (default 90) to control the raw-track retention window. `/operations/storage` shows a **Retention cleanup** card that previews and deletes only raw recording tracks older than the window.
+
+Eligibility is conservative:
+
+- The asset must belong to a recording (`recording_id` is set) and be older than the cutoff.
+- The recording must not be referenced by any timeline.
+- The asset must not be referenced by any storyboard scene.
+
+Renders, thumbnails, waveforms and uploaded evidence media are not part of this cleanup. Deleting a raw track also removes its thumbnail and waveform. There is still no automatic purge job.
 
 ## Safe cleanup
 

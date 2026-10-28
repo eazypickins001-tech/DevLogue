@@ -20,7 +20,8 @@ import {
   mutedLinkClass,
 } from "@/components/ui";
 import { getOwner, requireSession } from "@/lib/auth";
-import { getProject, listDraftsForProject, listProjectAccounts, listSessions } from "@/lib/queries";
+import { getProject, getProjectStorageUsage, listDraftsForProject, listProjectAccounts, listSessions } from "@/lib/queries";
+import { formatStorageBytes } from "@/lib/storage-policy";
 import {
   DRAFT_STATUS_LABELS,
   SESSION_STATUS_LABELS,
@@ -59,10 +60,11 @@ export default async function ProjectDetailPage({
   const project = await getProject(owner.id, id);
   if (!project) notFound();
 
-  const [sessions, drafts, accounts] = await Promise.all([
+  const [sessions, drafts, accounts, storage] = await Promise.all([
     listSessions(owner.id, project.id),
     listDraftsForProject(owner.id, project.id),
     listProjectAccounts(owner.id, project.id),
+    getProjectStorageUsage(owner.id, project.id),
   ]);
 
   return (
@@ -289,6 +291,13 @@ export default async function ProjectDetailPage({
             />
             <form action={deleteProjectData} className="space-y-3 p-5">
               <input type="hidden" name="projectId" value={project.id} />
+              {storage.count > 0 ? (
+                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
+                  This also removes {formatStorageBytes(storage.bytes)} across {storage.count} media
+                  asset{storage.count === 1 ? "" : "s"} from R2, plus their renders, thumbnails and
+                  waveforms.
+                </p>
+              ) : null}
               <label className="block text-sm text-slate-700" htmlFor="confirmation">
                 Type DELETE to confirm
               </label>

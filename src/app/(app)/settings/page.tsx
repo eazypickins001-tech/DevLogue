@@ -200,6 +200,29 @@ export default async function SettingsPage() {
                 </ul>
               </div>
             ) : null}
+            {storage.bySession.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Largest sessions
+                </p>
+                <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {storage.bySession.map((session) => (
+                    <li key={session.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <Link
+                        href={`/sessions/${session.id}`}
+                        className="truncate text-slate-800 hover:underline"
+                      >
+                        {session.title}
+                      </Link>
+                      <span className="shrink-0 text-xs text-slate-500">
+                        {formatBytes(session.bytes)} - {session.count} asset
+                        {session.count === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <p className="text-xs text-slate-500">
               Sizes are recorded when assets are uploaded. Thumbnails and waveforms live under their
               parent asset; this summary does not list R2 objects orphaned outside the database.

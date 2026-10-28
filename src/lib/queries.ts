@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   aiAnalyses,
@@ -248,13 +248,14 @@ export type StorageSummary = {
   assetCount: number;
   byKind: { kind: string; bytes: number; count: number }[];
   byProject: { id: string | null; name: string; bytes: number; count: number }[];
+  bySession: { id: string; title: string; bytes: number; count: number }[];
 };
 
 export async function getStorageSummary(userId: string): Promise<StorageSummary> {
   const db = getDb();
   const bytes = sql<string>`coalesce(sum(${mediaAssets.sizeBytes}), 0)::bigint`;
   const count = sql<number>`count(*)::int`;
-  const [byKind, byProject, totals] = await Promise.all([
+  const [byKind, byProject, bySession, totals] = await Promise.all([
     db
       .select({ kind: mediaAssets.kind, bytes, count })
       .from(mediaAssets)
@@ -275,6 +276,19 @@ export async function getStorageSummary(userId: string): Promise<StorageSummary>
       .orderBy(desc(bytes))
       .limit(8),
     db
+      .select({
+        id: buildSessions.id,
+        title: buildSessions.title,
+        bytes,
+        count,
+      })
+      .from(mediaAssets)
+      .innerJoin(buildSessions, eq(mediaAssets.sessionId, buildSessions.id))
+      .where(eq(mediaAssets.userId, userId))
+      .groupBy(buildSessions.id, buildSessions.title)
+      .orderBy(desc(bytes))
+      .limit(8),
+    db
       .select({ bytes, count })
       .from(mediaAssets)
       .where(eq(mediaAssets.userId, userId)),
@@ -284,7 +298,73 @@ export async function getStorageSummary(userId: string): Promise<StorageSummary>
     assetCount: Number(totals[0]?.count ?? 0),
     byKind: byKind.map((row) => ({ ...row, bytes: Number(row.bytes) })),
     byProject: byProject.map((row) => ({ ...row, bytes: Number(row.bytes) })),
+    bySession: bySession.map((row) => ({ ...row, bytes: Number(row.bytes) })),
   };
+}
+
+export async function getProjectStorageUsage(
+  userId: string,
+  projectId: string,
+): Promise<{ bytes: number; count: number }> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      bytes: sql<string>`coalesce(sum(${mediaAssets.sizeBytes}), 0)::bigint`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(mediaAssets)
+    .where(and(eq(mediaAssets.userId, userId), eq(mediaAssets.projectId, projectId)));
+  return {
+    bytes: Number(rows[0]?.bytes ?? 0),
+    count: Number(rows[0]?.count ?? 0),
+  };
+}
+
+export type RetentionCandidate = {
+  id: string;
+  filename: string;
+  track: string | null;
+  storageKey: string;
+  thumbnailKey: string | null;
+  waveformKey: string | null;
+  sizeBytes: number;
+  createdAt: Date;
+  projectName: string | null;
+  sessionTitle: string | null;
+};
+
+export async function listRetentionCandidates(
+  userId: string,
+  cutoff: Date,
+): Promise<RetentionCandidate[]> {
+  const db = getDb();
+  return db
+    .select({
+      id: mediaAssets.id,
+      filename: mediaAssets.filename,
+      track: mediaAssets.recordingTrack,
+      storageKey: mediaAssets.storageKey,
+      thumbnailKey: mediaAssets.thumbnailKey,
+      waveformKey: mediaAssets.waveformKey,
+      sizeBytes: mediaAssets.sizeBytes,
+      createdAt: mediaAssets.createdAt,
+      projectName: projects.name,
+      sessionTitle: buildSessions.title,
+    })
+    .from(mediaAssets)
+    .leftJoin(projects, eq(mediaAssets.projectId, projects.id))
+    .leftJoin(buildSessions, eq(mediaAssets.sessionId, buildSessions.id))
+    .where(
+      and(
+        eq(mediaAssets.userId, userId),
+        isNotNull(mediaAssets.recordingId),
+        lt(mediaAssets.createdAt, cutoff),
+        sql`not exists (select 1 from ${timelineProjects} where ${timelineProjects.recordingId} = ${mediaAssets.recordingId})`,
+        sql`not exists (select 1 from ${storyboardScenes} where ${storyboardScenes.sourceAssetId} = ${mediaAssets.id})`,
+      ),
+    )
+    .orderBy(asc(mediaAssets.createdAt))
+    .limit(500);
 }
 export async function listPendingMultipartUploads(userId: string, sessionId: string) {
   const db = getDb();

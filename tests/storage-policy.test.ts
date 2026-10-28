@@ -1,5 +1,10 @@
 ﻿import { describe, expect, it } from "vitest";
-import { DEFAULT_STORAGE_WARNING_BYTES, formatStorageBytes, storageWarningLevel } from "@/lib/storage-policy";
+import {
+  DEFAULT_STORAGE_WARNING_BYTES,
+  formatStorageBytes,
+  retentionCutoff,
+  storageWarningLevel,
+} from "@/lib/storage-policy";
 
 describe("storage policy", () => {
   it("formats bytes", () => {
@@ -12,5 +17,11 @@ describe("storage policy", () => {
     expect(storageWarningLevel(100, 200)).toBe("ok");
     expect(storageWarningLevel(200, 200)).toBe("warning");
     expect(storageWarningLevel(300, 200)).toBe("warning");
+  });
+
+  it("computes the retention cutoff", () => {
+    const now = new Date("2026-10-28T12:00:00.000Z");
+    expect(retentionCutoff(90, now).toISOString()).toBe("2026-07-30T12:00:00.000Z");
+    expect(retentionCutoff(0, now).toISOString()).toBe(now.toISOString());
   });
 });
