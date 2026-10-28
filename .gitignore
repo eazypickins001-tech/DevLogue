@@ -17,6 +17,7 @@ coverage/
 Thumbs.db
 *.log
 .smoke-failure.png
+.smoke-workflow-failure.png
 .vercel
 *-failure.png
 .dev-server.pid

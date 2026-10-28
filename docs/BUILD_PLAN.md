@@ -154,12 +154,12 @@ Acceptance:
 Goal: catch regressions before users do.
 
 - [x] Add CI for lint, typecheck, tests and build.
-- [ ] Add Playwright E2E for record -> upload -> render -> draft -> publish.
+- [x] Add Playwright E2E for record -> upload -> render -> draft -> publish. `pnpm smoke:workflow` records with fake media devices, uploads tracks, runs the render worker, creates a draft and verifies the publishing handoff. Live mode only verifies the handoff form; test mode creates and removes a real HighLevel draft. Local-only because it needs the worker and ffmpeg.
 - [x] Add CI-backed read-only Playwright smoke for auth, routes, preview, worker, PWA, offline, accessibility and mobile.
 - [ ] Add multipart/resume E2E.
 - [ ] Add project/timeline deletion E2E with R2 assertions.
 - [ ] Add worker control E2E with a test control service.
-- [ ] Add PWA/offline checks.
+- [x] Add PWA/offline checks. Covered by the read-only smoke offline step.
 - [ ] Add backup/restore runbook.
 - [ ] Add error monitoring and structured logs.
 - [ ] Add rate limiting and auth hardening if multi-user is added.

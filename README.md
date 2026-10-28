@@ -284,6 +284,12 @@ Integration smoke (needs `.env.local`, a running server on port 3000, valid R2/A
 pnpm smoke
 ```
 
+Full workflow smoke (records a camera clip with fake devices, uploads the tracks, runs the render worker, creates a content draft and checks the publishing handoff; deletes the project afterwards):
+
+```powershell
+pnpm smoke:workflow
+```
+
 Read-only production smoke (login, route health, preview, worker panel, PWA, offline fallback, accessibility and mobile overflow; no mutations):
 
 ```powershell
