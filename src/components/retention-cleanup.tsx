@@ -148,12 +148,12 @@ export function RetentionCleanup({ retentionDays }: { retentionDays: number }) {
                 <table className="w-full text-left text-xs">
                   <thead className="sticky top-0 bg-slate-50 text-slate-500">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Type</th>
-                      <th className="px-3 py-2 font-medium">Project</th>
-                      <th className="px-3 py-2 font-medium">Session</th>
-                      <th className="px-3 py-2 font-medium">Item</th>
-                      <th className="px-3 py-2 font-medium">Recorded</th>
-                      <th className="px-3 py-2 font-medium">Size</th>
+                      <th scope="col" className="px-3 py-2 font-medium">Type</th>
+                      <th scope="col" className="px-3 py-2 font-medium">Project</th>
+                      <th scope="col" className="px-3 py-2 font-medium">Session</th>
+                      <th scope="col" className="px-3 py-2 font-medium">Item</th>
+                      <th scope="col" className="px-3 py-2 font-medium">Recorded</th>
+                      <th scope="col" className="px-3 py-2 font-medium">Size</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">

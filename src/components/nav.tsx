@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = { href: string; label: string };
@@ -55,19 +55,35 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const desktopRef = useRef<HTMLDivElement>(null);
+  const mobileButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const activeGroup = GROUPS.find((group) => group.items.some((item) => isActive(item.href)))?.label;
 
   useEffect(() => {
     if (!openGroup) return;
+    menuRefs.current[openGroup]?.querySelector<HTMLAnchorElement>("a")?.focus();
+  }, [openGroup]);
+
+  useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
-      if (desktopRef.current && !desktopRef.current.contains(event.target as Node)) {
+      if (openGroup && desktopRef.current && !desktopRef.current.contains(event.target as Node)) {
         setOpenGroup(null);
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenGroup(null);
+      if (event.key !== "Escape") return;
+      if (openGroup) {
+        const group = openGroup;
+        setOpenGroup(null);
+        triggerRefs.current[group]?.focus();
+      }
+      if (mobileOpen) {
+        setMobileOpen(false);
+        mobileButtonRef.current?.focus();
+      }
     };
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
@@ -75,7 +91,24 @@ export function Nav() {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [openGroup]);
+  }, [openGroup, mobileOpen]);
+
+  function onMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>("a"));
+    if (links.length === 0) return;
+    event.preventDefault();
+    const index = links.indexOf(document.activeElement as HTMLAnchorElement);
+    const next =
+      index < 0
+        ? event.key === "ArrowDown"
+          ? 0
+          : links.length - 1
+        : event.key === "ArrowDown"
+          ? (index + 1) % links.length
+          : (index - 1 + links.length) % links.length;
+    links[next]?.focus();
+  }
 
   return (
     <nav aria-label="Main" className="border-b border-slate-200 bg-white">
@@ -90,6 +123,7 @@ export function Nav() {
         <div className="ml-auto flex items-center gap-2 min-[1400px]:order-3">
           <ThemeToggle />
           <button
+            ref={mobileButtonRef}
             type="button"
             onClick={() => setMobileOpen((value) => !value)}
             aria-expanded={mobileOpen}
@@ -115,6 +149,9 @@ export function Nav() {
           {GROUPS.map((group) => (
             <div key={group.label} className="relative">
               <button
+                ref={(node) => {
+                  triggerRefs.current[group.label] = node;
+                }}
                 type="button"
                 aria-expanded={openGroup === group.label}
                 aria-haspopup="true"
@@ -131,12 +168,20 @@ export function Nav() {
                 </span>
               </button>
               {openGroup === group.label ? (
-                <div className="absolute left-0 top-full z-40 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div
+                  ref={(node) => {
+                    menuRefs.current[group.label] = node;
+                  }}
+                  role="menu"
+                  onKeyDown={onMenuKeyDown}
+                  className="absolute left-0 top-full z-40 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+                >
                   <ul className="space-y-0.5">
                     {group.items.map((item) => (
                       <li key={item.href}>
                         <Link
                           href={item.href}
+                          role="menuitem"
                           onClick={() => setOpenGroup(null)}
                           aria-current={isActive(item.href) ? "page" : undefined}
                           className={`block rounded-lg px-3 py-2 text-sm no-underline ${
@@ -175,7 +220,7 @@ export function Nav() {
             </Link>
             {GROUPS.map((group) => (
               <div key={group.label} className="mt-4">
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   {group.label}
                 </p>
                 <ul className="mt-1 space-y-0.5">

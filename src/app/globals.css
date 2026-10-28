@@ -27,6 +27,15 @@ a {
   @apply underline-offset-4;
 }
 
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+.dark :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline-color: #a5b4fc;
+}
+
 .prose-draft {
   @apply whitespace-pre-wrap text-[15px] leading-7 text-slate-800;
 }

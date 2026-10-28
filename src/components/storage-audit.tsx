@@ -124,9 +124,9 @@ export function StorageAudit() {
               <table className="w-full text-left text-xs">
                 <thead className="sticky top-0 bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Key</th>
-                    <th className="px-3 py-2 font-medium">Size</th>
-                    <th className="px-3 py-2 font-medium">Last modified</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Key</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Size</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Last modified</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono">

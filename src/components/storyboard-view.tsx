@@ -48,12 +48,12 @@ export function StoryboardView({
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="py-2 pr-3">#</th>
-              <th className="py-2 pr-3">Time</th>
-              <th className="py-2 pr-3">On-screen text</th>
-              <th className="py-2 pr-3">Narration</th>
-              <th className="py-2 pr-3">Visual</th>
-              <th className="py-2">Source</th>
+              <th scope="col" className="py-2 pr-3">#</th>
+              <th scope="col" className="py-2 pr-3">Time</th>
+              <th scope="col" className="py-2 pr-3">On-screen text</th>
+              <th scope="col" className="py-2 pr-3">Narration</th>
+              <th scope="col" className="py-2 pr-3">Visual</th>
+              <th scope="col" className="py-2">Source</th>
             </tr>
           </thead>
           <tbody>

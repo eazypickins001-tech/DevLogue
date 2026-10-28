@@ -69,6 +69,42 @@ try {
     });
   }
 
+  await step("accessibility", async () => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${base}/dashboard`);
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to content" });
+    const skipState = await skip.evaluate((node) => ({
+      focused: node === document.activeElement,
+      position: getComputedStyle(node).position,
+      outline: getComputedStyle(node).outlineStyle,
+    }));
+    if (!skipState.focused) throw new Error("Skip link is not the first tab stop");
+    if (skipState.position !== "fixed") throw new Error("Skip link is not revealed on focus");
+    if (skipState.outline === "none") throw new Error("Focused element has no visible outline");
+
+    const menu = page.getByRole("button", { name: "Create", exact: true });
+    await menu.focus();
+    await page.keyboard.press("Enter");
+    if ((await menu.getAttribute("aria-expanded")) !== "true") throw new Error("Menu did not open");
+    await page.waitForFunction(
+      () => document.activeElement?.textContent?.trim() === "Projects",
+      undefined,
+      { timeout: 5000 },
+    );
+    await page.keyboard.press("ArrowDown");
+    const nextFocused = await page.evaluate(() => document.activeElement?.textContent?.trim());
+    if (nextFocused !== "Sessions") throw new Error(`ArrowDown focused ${nextFocused ?? "nothing"}`);
+    await page.keyboard.press("Escape");
+    if ((await menu.getAttribute("aria-expanded")) !== "false") throw new Error("Menu did not close on Escape");
+    if (!(await menu.evaluate((node) => node === document.activeElement))) {
+      throw new Error("Focus did not return to the menu trigger");
+    }
+
+    const current = page.locator('nav a[aria-current="page"]');
+    if ((await current.count()) === 0) throw new Error("Active nav link is not marked aria-current");
+  });
+
   await step("timeline preview", async () => {
     await page.goto(`${base}/timelines`);
     const timeline = page.locator('a[href^="/timelines/"]').first();
