@@ -158,7 +158,7 @@ Goal: catch regressions before users do.
 - [x] Add CI-backed read-only Playwright smoke for auth, routes, preview, worker, PWA, offline, accessibility and mobile.
 - [x] Add multipart/resume E2E. `pnpm smoke:multipart` generates a 38MB clip with ffmpeg, reloads mid-upload, resumes from the stored parts and checks the registered asset. Local-only because it needs ffmpeg and real R2 writes.
 - [x] Add project/timeline deletion E2E with R2 assertions. `pnpm smoke:deletion` renders a timeline, verifies the render object is removed while raw tracks survive, then verifies project deletion removes every R2 object and row. Also fixed `/timelines` dropping success/error messages.
-- [ ] Add worker control E2E with a test control service.
+- [x] Add worker control E2E with a test control service. `pnpm smoke:worker` drives the control service over HTTP: auth rejection, start idempotency, log tail, database diagnostic and stop. Also fixed `/video` dropping retry messages. Next 16 refuses a second dev server, so the UI is not driven directly.
 - [x] Add PWA/offline checks. Covered by the read-only smoke offline step.
 - [ ] Add backup/restore runbook.
 - [ ] Add error monitoring and structured logs.

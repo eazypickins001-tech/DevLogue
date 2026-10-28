@@ -302,6 +302,12 @@ Deletion smoke (records and renders a clip, deletes the timeline and checks the 
 pnpm smoke:deletion
 ```
 
+Worker control smoke (starts the control service, checks auth, starts the worker, verifies the log and database diagnostic, then stops it):
+
+```powershell
+pnpm smoke:worker
+```
+
 Read-only production smoke (login, route health, preview, worker panel, PWA, offline fallback, accessibility and mobile overflow; no mutations):
 
 ```powershell

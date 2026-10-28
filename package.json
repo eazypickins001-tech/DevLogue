@@ -14,6 +14,7 @@
     "smoke:workflow": "node scripts/smoke-workflow.mjs",
     "smoke:multipart": "node scripts/smoke-multipart.mjs",
     "smoke:deletion": "node scripts/smoke-deletion.mjs",
+    "smoke:worker": "node scripts/smoke-worker.mjs",
     "smoke:readonly": "node scripts/smoke-readonly.mjs",
     "prune:errors": "node scripts/prune-error-events.mjs",
     "worker": "node scripts/render-worker.mjs",

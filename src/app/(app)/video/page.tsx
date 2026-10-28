@@ -18,7 +18,12 @@ import { formatDuration } from "@/lib/recording/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function VideoPage() {
+export default async function VideoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string; error?: string }>;
+}) {
+  const { message, error } = await searchParams;
   if (!isDatabaseConfigured()) {
     return (
       <div className="space-y-6">
@@ -48,6 +53,17 @@ export default async function VideoPage() {
         title="Video Production"
         description="Storyboards are ready to edit. Automated rendering is a local-worker feature, not a Vercel request."
       />
+
+      {message ? (
+        <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {message}
+        </div>
+      ) : null}
+      {error ? (
+        <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {error}
+        </div>
+      ) : null}
 
       <SetupNotice title="Rendering runs on your machine">
         <p>
