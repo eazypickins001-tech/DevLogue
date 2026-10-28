@@ -12,6 +12,7 @@
     "test": "vitest run",
     "smoke": "node scripts/smoke-e2e.mjs",
     "smoke:workflow": "node scripts/smoke-workflow.mjs",
+    "smoke:multipart": "node scripts/smoke-multipart.mjs",
     "smoke:readonly": "node scripts/smoke-readonly.mjs",
     "prune:errors": "node scripts/prune-error-events.mjs",
     "worker": "node scripts/render-worker.mjs",

@@ -290,6 +290,12 @@ Full workflow smoke (records a camera clip with fake devices, uploads the tracks
 pnpm smoke:workflow
 ```
 
+Multipart/resume smoke (generates a ~38MB clip with ffmpeg, interrupts the upload mid-flight, resumes from the uploaded parts and verifies the asset; deletes the project afterwards):
+
+```powershell
+pnpm smoke:multipart
+```
+
 Read-only production smoke (login, route health, preview, worker panel, PWA, offline fallback, accessibility and mobile overflow; no mutations):
 
 ```powershell
