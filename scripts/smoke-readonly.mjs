@@ -147,6 +147,22 @@ try {
     if (!(await page.evaluate(() => "serviceWorker" in navigator))) throw new Error("Service worker unsupported");
   });
 
+  await step("PWA offline", async () => {
+    await page.goto(`${base}/`);
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await page.context().setOffline(true);
+    try {
+      const response = await page.goto(`${base}/dashboard`, { waitUntil: "domcontentloaded" });
+      if (!response || response.status() >= 400) throw new Error(`HTTP ${response?.status() ?? "unknown"}`);
+      const text = await page.locator("body").innerText();
+      if (!text.includes("You are offline")) throw new Error("Offline fallback page was not served");
+    } finally {
+      await page.context().setOffline(false);
+    }
+  });
+
   await step("mobile overflow", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const route of ["/dashboard", "/studio", "/timelines", "/operations/errors", "/operations/storage"]) {

@@ -139,7 +139,7 @@ Goal: consistent UI that works on desktop and mobile.
 - [ ] Improve forms, tables and timeline touch targets.
 - [ ] Add safe-area handling and mobile record flow.
 - [x] Build-version the service worker or switch app chunks to network-first.
-- [ ] Add install prompt, offline page and update-available flow.
+- [x] Add install prompt, offline page and update-available flow. (Offline fallback is covered by the read-only smoke; waiting-worker reload is implemented but not automated.)
 - [ ] Add PWA tests on Android/iOS/desktop.
 - [x] Add accessibility pass: focus, keyboard, contrast, reduced motion. (Global focus-visible outlines, keyboard menu focus/arrow/Escape handling, table header scopes, skip link and reduced motion; broader contrast review remains.)
 
@@ -155,7 +155,7 @@ Goal: catch regressions before users do.
 
 - [x] Add CI for lint, typecheck, tests and build.
 - [ ] Add Playwright E2E for record -> upload -> render -> draft -> publish.
-- [x] Add CI-backed read-only Playwright smoke for auth, routes, preview, worker, PWA, accessibility and mobile.
+- [x] Add CI-backed read-only Playwright smoke for auth, routes, preview, worker, PWA, offline, accessibility and mobile.
 - [ ] Add multipart/resume E2E.
 - [ ] Add project/timeline deletion E2E with R2 assertions.
 - [ ] Add worker control E2E with a test control service.
