@@ -50,8 +50,9 @@ export default async function StoragePage() {
           <p>Scanning is read-only. The delete action re-reads the database before removing keys.</p>
           <p>Only keys under media/, renders/ and derivatives/ are eligible. Other bucket objects are ignored.</p>
           <p>
-            Retention cleanup only removes raw recording tracks older than MEDIA_RETENTION_DAYS that
-            no timeline or storyboard references. Renders and uploaded evidence media are kept.
+            Retention cleanup removes raw recording tracks older than MEDIA_RETENTION_DAYS that no
+            timeline or storyboard references, plus superseded renders. The latest successful render
+            per timeline and draft is kept.
           </p>
           <p>Deletion is irreversible. Take an R2 snapshot or lifecycle backup before broad cleanup.</p>
         </div>

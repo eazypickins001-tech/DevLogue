@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { supersededRenderKeys } from "@/lib/storage-retention";
 import {
   aiAnalyses,
   approvals,
@@ -331,14 +332,32 @@ export type RetentionCandidate = {
   createdAt: Date;
   projectName: string | null;
   sessionTitle: string | null;
+  category: "track";
 };
+
+export type RenderRetentionCandidate = {
+  id: string;
+  filename: string;
+  storageKey: string;
+  thumbnailKey: string | null;
+  waveformKey: string | null;
+  sizeBytes: number;
+  createdAt: Date;
+  projectName: string | null;
+  sessionTitle: string | null;
+  category: "render";
+  source: "timeline" | "draft";
+  label: string;
+};
+
+export type RetentionItem = RetentionCandidate | RenderRetentionCandidate;
 
 export async function listRetentionCandidates(
   userId: string,
   cutoff: Date,
 ): Promise<RetentionCandidate[]> {
   const db = getDb();
-  return db
+  const rows = await db
     .select({
       id: mediaAssets.id,
       filename: mediaAssets.filename,
@@ -365,6 +384,104 @@ export async function listRetentionCandidates(
     )
     .orderBy(asc(mediaAssets.createdAt))
     .limit(500);
+  return rows.map((row) => ({ ...row, category: "track" as const }));
+}
+
+export async function listRenderRetentionCandidates(
+  userId: string,
+  cutoff: Date,
+): Promise<RenderRetentionCandidate[]> {
+  const db = getDb();
+  const [timelineJobs, draftJobs] = await Promise.all([
+    db
+      .select({
+        id: timelineRenderJobs.id,
+        groupId: timelineRenderJobs.timelineId,
+        outputKey: timelineRenderJobs.outputKey,
+        label: timelineProjects.title,
+        createdAt: timelineRenderJobs.createdAt,
+      })
+      .from(timelineRenderJobs)
+      .innerJoin(timelineProjects, eq(timelineRenderJobs.timelineId, timelineProjects.id))
+      .where(
+        and(
+          eq(timelineProjects.userId, userId),
+          eq(timelineRenderJobs.status, "succeeded"),
+          isNotNull(timelineRenderJobs.outputKey),
+        ),
+      )
+      .orderBy(asc(timelineRenderJobs.createdAt)),
+    db
+      .select({
+        id: renderJobs.id,
+        groupId: renderJobs.draftId,
+        outputKey: renderJobs.outputKey,
+        label: sql<string>`coalesce(${contentDrafts.title}, 'Untitled draft')`,
+        createdAt: renderJobs.createdAt,
+      })
+      .from(renderJobs)
+      .innerJoin(contentDrafts, eq(renderJobs.draftId, contentDrafts.id))
+      .innerJoin(projects, eq(contentDrafts.projectId, projects.id))
+      .where(
+        and(
+          eq(projects.userId, userId),
+          eq(renderJobs.status, "succeeded"),
+          isNotNull(renderJobs.outputKey),
+        ),
+      )
+      .orderBy(asc(renderJobs.createdAt)),
+  ]);
+
+  const sources = new Map<string, { source: "timeline" | "draft"; label: string }>();
+  for (const [key, label] of supersededRenderKeys(timelineJobs, cutoff)) {
+    sources.set(key, { source: "timeline", label });
+  }
+  for (const [key, label] of supersededRenderKeys(draftJobs, cutoff)) {
+    sources.set(key, { source: "draft", label });
+  }
+  const keys = [...sources.keys()].slice(0, 500);
+  if (keys.length === 0) return [];
+
+  const rows = await db
+    .select({
+      id: mediaAssets.id,
+      filename: mediaAssets.filename,
+      storageKey: mediaAssets.storageKey,
+      thumbnailKey: mediaAssets.thumbnailKey,
+      waveformKey: mediaAssets.waveformKey,
+      sizeBytes: mediaAssets.sizeBytes,
+      createdAt: mediaAssets.createdAt,
+      projectName: projects.name,
+      sessionTitle: buildSessions.title,
+    })
+    .from(mediaAssets)
+    .leftJoin(projects, eq(mediaAssets.projectId, projects.id))
+    .leftJoin(buildSessions, eq(mediaAssets.sessionId, buildSessions.id))
+    .where(and(eq(mediaAssets.userId, userId), inArray(mediaAssets.storageKey, keys)));
+
+  return rows.flatMap((row) => {
+    const meta = sources.get(row.storageKey);
+    if (!meta) return [];
+    return [
+      {
+        ...row,
+        category: "render" as const,
+        source: meta.source,
+        label: meta.label || row.filename,
+      },
+    ];
+  });
+}
+
+export async function listRetentionItems(
+  userId: string,
+  cutoff: Date,
+): Promise<RetentionItem[]> {
+  const [tracks, renders] = await Promise.all([
+    listRetentionCandidates(userId, cutoff),
+    listRenderRetentionCandidates(userId, cutoff),
+  ]);
+  return [...tracks, ...renders];
 }
 export async function listPendingMultipartUploads(userId: string, sessionId: string) {
   const db = getDb();

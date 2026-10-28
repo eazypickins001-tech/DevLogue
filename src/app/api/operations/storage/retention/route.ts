@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { mediaAssets } from "@/db/schema";
 import { getOwner, requireSession } from "@/lib/auth";
-import { listRetentionCandidates } from "@/lib/queries";
+import { listRetentionItems } from "@/lib/queries";
 import { deleteObject, isStorageConfigured } from "@/lib/storage";
 import { mediaRetentionDays, retentionCutoff } from "@/lib/storage-policy";
 
@@ -16,7 +16,7 @@ export async function GET(): Promise<Response> {
   const owner = await getOwner();
   const days = mediaRetentionDays();
   const cutoff = retentionCutoff(days);
-  const candidates = await listRetentionCandidates(owner.id, cutoff);
+  const candidates = await listRetentionItems(owner.id, cutoff);
   const byProject = new Map<string, { name: string; bytes: number; count: number }>();
   for (const candidate of candidates) {
     const name = candidate.projectName ?? "Unassigned";
@@ -25,12 +25,21 @@ export async function GET(): Promise<Response> {
     row.count += 1;
     byProject.set(name, row);
   }
+  const summarize = (category: "track" | "render") => {
+    const items = candidates.filter((candidate) => candidate.category === category);
+    return {
+      count: items.length,
+      bytes: items.reduce((total, candidate) => total + candidate.sizeBytes, 0),
+    };
+  };
   return NextResponse.json({
     ok: true,
     days,
     cutoff: cutoff.toISOString(),
     assetCount: candidates.length,
     bytes: candidates.reduce((total, candidate) => total + candidate.sizeBytes, 0),
+    tracks: summarize("track"),
+    renders: summarize("render"),
     byProject: [...byProject.values()].sort((a, b) => b.bytes - a.bytes),
     assets: candidates.map(({ storageKey, thumbnailKey, waveformKey, ...candidate }) => candidate),
   });
@@ -58,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const owner = await getOwner();
-  const candidates = await listRetentionCandidates(owner.id, retentionCutoff(mediaRetentionDays()));
+  const candidates = await listRetentionItems(owner.id, retentionCutoff(mediaRetentionDays()));
   const wanted = new Set(parsed.data.assetIds);
   const assets = candidates.filter((candidate) => wanted.has(candidate.id));
   const deleted: string[] = [];

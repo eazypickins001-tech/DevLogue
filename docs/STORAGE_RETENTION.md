@@ -26,15 +26,17 @@ Set `STORAGE_WARNING_BYTES` (default 8 GiB) to show storage warnings on Record a
 
 ## Retention cleanup
 
-Set `MEDIA_RETENTION_DAYS` (default 90) to control the raw-track retention window. `/operations/storage` shows a **Retention cleanup** card that previews and deletes only raw recording tracks older than the window.
+Set `MEDIA_RETENTION_DAYS` (default 90) to control the retention window. `/operations/storage` shows a **Retention cleanup** card that previews and deletes two kinds of old data:
+
+- **Raw recording tracks** older than the window that no timeline or storyboard references.
+- **Superseded renders** older than the window. The latest successful render for each timeline and each draft is always kept.
 
 Eligibility is conservative:
 
-- The asset must belong to a recording (`recording_id` is set) and be older than the cutoff.
-- The recording must not be referenced by any timeline.
-- The asset must not be referenced by any storyboard scene.
+- Raw tracks must belong to a recording (`recording_id` is set), be older than the cutoff, and not be referenced by any timeline or storyboard scene.
+- Renders must be succeeded jobs older than the cutoff and must not be the newest succeeded render for their timeline or draft.
 
-Renders, thumbnails, waveforms and uploaded evidence media are not part of this cleanup. Deleting a raw track also removes its thumbnail and waveform. There is still no automatic purge job.
+Uploaded evidence media, thumbnails and waveforms attached to kept assets are not part of this cleanup. Deleting an item also removes its thumbnail and waveform. There is still no automatic purge job.
 
 ## Safe cleanup
 
