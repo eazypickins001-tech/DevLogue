@@ -36,7 +36,7 @@ new → acknowledged → investigating → fixed → verified → archived
 | --- | --- |
 | Server render/action/route | `src/instrumentation.ts` via Next.js `onRequestError` |
 | Client crash boundary | `src/app/error.tsx` and `src/app/global-error.tsx` |
-| Browser runtime | `src/components/error-reporter.tsx` (`window.error`, `unhandledrejection`) |
+| Browser runtime | `src/components/error-reporter.tsx` (`window.error`, `unhandledrejection`); browser-extension frames are ignored |
 | Client offline | local queue flushed on reconnect |
 | Worker job failure | `scripts/error-ledger.mjs` from `scripts/render-worker.mjs` |
 | Worker transient loop failure | grouped warning, at most once per five minutes |
