@@ -68,7 +68,6 @@ async function clearWorkerLease() {
     const sql = neon(process.env.DATABASE_URL);
     await sql`delete from worker_leases where name = 'render-worker'`;
   } catch {
-    // The worker also releases its lease on a graceful exit.
   }
 }
 
