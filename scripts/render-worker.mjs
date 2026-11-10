@@ -332,7 +332,7 @@ async function processTimelineJob(job) {
   mkdirSync(workDir, { recursive: true });
 
   const rows = await sql`
-    select t.*, p.user_id, b.title as session_title
+    select t.*, p.user_id, p.platforms, b.title as session_title
     from timeline_projects t
     join projects p on p.id = t.project_id
     left join build_sessions b on b.id = t.session_id
@@ -418,6 +418,49 @@ async function processTimelineJob(job) {
     insert into media_derivative_jobs (media_asset_id, status)
     values (${media[0].id}, 'queued')
   `;
+
+  let draftId = timeline.draft_id ?? null;
+  if (!draftId) {
+    try {
+      const captionText = (document.tracks ?? [])
+        .flatMap((track) => track.clips ?? [])
+        .filter((clip) => clip.label === "Auto caption" && clip.text?.content)
+        .map((clip) => clip.text.content)
+        .join(" ")
+        .trim()
+        .slice(0, 1800);
+      const body = captionText || `Edited recording from ${timeline.title}.`;
+      const platforms = Array.isArray(timeline.platforms) ? timeline.platforms : [];
+      const targetPlatform = typeof platforms[0] === "string" ? platforms[0] : "instagram";
+      const payload = JSON.stringify({ timelineId: timeline.id, renderedMediaId: media[0].id });
+      const inserted = await sql`
+        insert into content_drafts (
+          project_id, session_id, format, target_platform, title, body, payload, status, current_version
+        )
+        values (
+          ${timeline.project_id}, ${timeline.session_id}, 'short_video', ${targetPlatform},
+          ${timeline.title}, ${body}, ${payload}::jsonb, 'needs_review', 1
+        )
+        returning id
+      `;
+      draftId = inserted[0]?.id ?? null;
+      if (draftId) {
+        await sql`
+          insert into draft_versions (draft_id, version, title, body, payload, source)
+          values (${draftId}, 1, ${timeline.title}, ${body}, ${payload}::jsonb, 'user')
+        `;
+        await sql`
+          update timeline_projects set draft_id = ${draftId}, updated_at = now()
+          where id = ${timeline.id}
+        `;
+        console.log(`timeline: draft ${draftId} queued for review`);
+      }
+    } catch (error) {
+      console.log(
+        `timeline: could not create draft: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
 
   await sql`
     update timeline_projects set status = 'rendered', updated_at = now()

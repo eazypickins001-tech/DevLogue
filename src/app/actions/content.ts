@@ -369,3 +369,15 @@ export async function archiveDraft(formData: FormData): Promise<void> {
     .where(eq(contentDrafts.id, draftId));
   redirect("/studio?message=Draft%20archived.");
 }
+
+export async function deleteDraft(formData: FormData): Promise<void> {
+  await requireSession();
+  if (!isDatabaseConfigured()) redirectError("/studio", "Database is not configured.");
+  const draftId = formString(formData, "draftId");
+  const owner = await getOwner();
+  const detail = await getDraftDetail(owner.id, draftId);
+  if (!detail) redirectError("/studio", "Draft not found.");
+  const db = getDb();
+  await db.delete(contentDrafts).where(eq(contentDrafts.id, draftId));
+  redirectSuccess("/studio", "Draft deleted. Linked timelines can now be deleted.");
+}

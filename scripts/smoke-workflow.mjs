@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { chromium } from "playwright";
 import { loginWithCode } from "./auth-helper.mjs";
 import { neon } from "@neondatabase/serverless";
@@ -64,6 +64,15 @@ async function waitForRender(timeline, timeoutMs) {
     await new Promise((resolve) => setTimeout(resolve, 5_000));
   }
   throw new Error("Timed out waiting for the timeline render.");
+}
+
+function killTree(child) {
+  if (!child || child.exitCode !== null) return;
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+  } else {
+    child.kill("SIGTERM");
+  }
 }
 
 function startWorker() {
@@ -163,8 +172,16 @@ try {
     await page.getByText("succeeded", { exact: true }).waitFor({ timeout: 60_000 });
   });
 
-  await step("create content draft", async () => {
-    await page.getByRole("button", { name: "Create content draft" }).click();
+  await step("open queued draft", async () => {
+    const open = page.getByRole("link", { name: "Open content draft" });
+    const create = page.getByRole("button", { name: "Create content draft" });
+    if ((await open.count()) > 0) {
+      await open.click();
+    } else if ((await create.count()) > 0) {
+      await create.click();
+    } else {
+      throw new Error("No draft action after render.");
+    }
     await page.waitForURL(/\/studio\/[0-9a-f-]{36}/);
     await page.getByRole("button", { name: /Approve version/ }).click();
     await page.locator('[role="status"]').filter({ hasText: "Approved version" }).waitFor();
@@ -199,6 +216,7 @@ try {
   console.log("WORKFLOW SMOKE FAILED:", currentStep, "-", error instanceof Error ? error.message : error);
   process.exitCode = 1;
 } finally {
-  worker?.kill();
+  killTree(worker);
+  await sql`delete from worker_leases where name = 'render-worker'`.catch(() => undefined);
   await browser.close();
 }

@@ -10,7 +10,7 @@ import {
   linkClass,
 } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
-import { listApprovedDrafts, listScheduledPosts } from "@/lib/queries";
+import { listApprovedDrafts, listDrafts, listScheduledPosts } from "@/lib/queries";
 import { formatDateTime } from "@/lib/labels";
 import { CONTENT_FORMATS, type ContentFormatValue } from "@/lib/domain/content";
 import { getServiceStatuses } from "@/lib/env";
@@ -31,9 +31,10 @@ export default async function CalendarPage() {
   }
 
   const owner = await getOwner();
-  const [posts, approved] = await Promise.all([
+  const [posts, approved, pending] = await Promise.all([
     listScheduledPosts(owner.id),
     listApprovedDrafts(owner.id),
+    listDrafts(owner.id, { status: "needs_review" }),
   ]);
   const ghl = getServiceStatuses().find((service) => service.key === "ghl");
 
@@ -59,6 +60,39 @@ export default async function CalendarPage() {
           </p>
         </SetupNotice>
       ) : null}
+
+      <Card>
+        <CardHeader
+          title="Waiting for approval"
+          description="Rendered timelines and AI drafts land here first. Approve a draft to move it into publishing."
+        />
+        {pending.length === 0 ? (
+          <p className="p-5 text-sm text-slate-600">Nothing is waiting for approval.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {pending.slice(0, 8).map(({ draft, projectName }) => (
+              <li
+                key={draft.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+              >
+                <div>
+                  <Link
+                    href={`/studio/${draft.id}`}
+                    className="text-sm font-medium text-slate-900 hover:underline"
+                  >
+                    {draft.title || CONTENT_FORMATS[draft.format as ContentFormatValue]?.label}
+                  </Link>
+                  <p className="text-xs text-slate-500">
+                    {projectName} ·{" "}
+                    {CONTENT_FORMATS[draft.format as ContentFormatValue]?.label ?? draft.format}
+                  </p>
+                </div>
+                <Badge tone="warning">Needs review</Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

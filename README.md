@@ -13,7 +13,7 @@ The product brief lives in [`docs/PROJECT_PROMPT.md`](docs/PROJECT_PROMPT.md). A
 - Timeline v1: multi-track preview, video thumbnails, audio waveforms, trim/timing inspector, camera/audio sync-offset nudges, source trim, captions, camera overlay visibility, 16:9/9:16 switch, versioned saves, and a final-render queue processed by the local worker.
 - Session-to-editor flow: choose the destination session before recording, save raw tracks, and open the generated timeline from the session page or the saved-recording prompt.
 - Transcript-driven captions: saving a recording queues microphone and system-audio transcription, the worker stores timestamped Whisper segments, and the editor turns the preferred transcript into timed text clips.
-- Timeline-to-publishing handoff: a rendered timeline can create a short-video content draft; publishing that draft uploads only the rendered MP4, not the raw screen/camera tracks.
+- Timeline-to-publishing handoff: a successful render automatically creates a short-video content draft for review; the calendar lists it under waiting for approval, and publishing uploads only the rendered MP4, not the raw tracks.
 - AI session analysis with Zod-validated structured output, evidence gaps and per-claim evidence references.
 - On-demand content generation (max 3 formats per batch) across 14 formats, including captions, threads, outlines, changelogs and short-video storyboards.
 - Storyboards with durations normalized to the target runtime and scenes mapped to uploaded media.

@@ -57,10 +57,11 @@ Goal: a user can always see both drafts and timelines in one place.
 - [x] Rename the destination to "Studio" in navigation and page copy.
 - [x] Add status badges for timeline draft/rendered/failed and draft approval state.
 - [x] Add a single primary action: Record or Open Video Editor. Studio shows "Open video editor" when timelines exist and "Record a session" otherwise.
-- [x] Make "Create content draft" discoverable only after a successful render.
+- [x] Make "Create content draft" discoverable only after a successful render. Renders now auto-create the needs-review draft; the manual button remains only for older renders without one.
 - [x] Add empty states that explain text drafts vs video drafts.
 - [x] Reduce overlapping navigation labels: Build Sessions, Record, Video Editor, Content Studio, Video Production.
 - [x] Add links between session, timeline, draft and publishing calendar. Session links to the video editor and calendar; timeline links to session, studio and calendar; draft links to session, timeline and calendar; calendar links back to drafts.
+- [x] Final renders auto-create a needs-review short-video draft; the calendar shows pending drafts under "Waiting for approval".
 
 Acceptance:
 
@@ -186,7 +187,7 @@ This gives immediate clarity without requiring the worker hosting decision first
 - ~~Is DevLogue a single-user tool or a multi-user product?~~ Multi-user: passwordless email OTP with admin-managed roles.
 - Should the worker run on Contabo permanently? If yes, who owns the control-service URL and token?
 - Should "Studio" replace both Content Studio and Video Editor as top-level concepts?
-- Should final renders auto-create drafts, or remain an explicit action?
+- ~~Should final renders auto-create drafts, or remain an explicit action?~~ Auto-create a needs-review draft; approval stays explicit.
 - Should raw tracks be deleted automatically after a retention window?
 
 ## Context handover protocol

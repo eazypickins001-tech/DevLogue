@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isDatabaseConfigured } from "@/db";
-import { approveDraft, archiveDraft, regenerateDraft, updateDraft } from "@/app/actions/content";
+import { approveDraft, archiveDraft, deleteDraft, regenerateDraft, updateDraft } from "@/app/actions/content";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { Field, TextArea, TextInput } from "@/components/form-fields";
 import { PublishPanel } from "@/components/publish-panel";
@@ -207,6 +207,15 @@ export default async function DraftPage({
                   className={buttonDanger}
                 >
                   Archive
+                </ConfirmSubmit>
+              </form>
+              <form action={deleteDraft}>
+                <input type="hidden" name="draftId" value={draft.id} />
+                <ConfirmSubmit
+                  message="Delete this draft and its versions? This cannot be undone."
+                  className={buttonDanger}
+                >
+                  Delete draft
                 </ConfirmSubmit>
               </form>
             </div>
