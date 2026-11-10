@@ -699,8 +699,16 @@ async function reportTransient(sql, error) {
     severity: "warning",
     error,
     action: "worker-loop",
+    fingerprint: "worker-loop-transient",
     context: { note: "Transient worker loop failure; grouped for five minutes." },
   });
+}
+
+function isExpectedTranscriptionFailure(error) {
+  return (
+    error instanceof Error &&
+    error.message.includes("No speech was transcribed")
+  );
 }
 
 const WORKER_LEASE = "render-worker";
@@ -795,12 +803,14 @@ async function main() {
         await processTranscriptionJob(transcriptionJob);
       } catch (error) {
         await failTranscriptionJob(sql, transcriptionJob, error);
-        await reportWorkerError(sql, error, {
-          jobType: "transcription",
-          jobId: transcriptionJob.id,
-          mediaId: transcriptionJob.media_asset_id,
-          context: { attempts: transcriptionJob.attempts },
-        });
+        if (!isExpectedTranscriptionFailure(error)) {
+          await reportWorkerError(sql, error, {
+            jobType: "transcription",
+            jobId: transcriptionJob.id,
+            mediaId: transcriptionJob.media_asset_id,
+            context: { attempts: transcriptionJob.attempts },
+          });
+        }
       }
       continue;
     }
