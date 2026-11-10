@@ -95,13 +95,13 @@ Acceptance:
 Goal: editing a video never looks like a blank screen.
 
 - [x] Add a clear Play overlay and loading state.
-- [ ] Add native source playback or a source preview panel.
+- [x] Add native source playback or a source preview panel. The inspector plays the selected clip's source video or audio.
 - [x] Show current clip, selected track and playhead time.
 - [x] Add poster fallback while thumbnails are missing.
-- [ ] Show a clear message when media is still processing.
+- [x] Show a clear message when media is still processing. The editor shows a banner while previews or transcription are queued/running.
 - [x] Add preview error states with links to repair media.
 - [x] Add autosave or a clear unsaved-changes warning.
-- [ ] Add optimistic concurrency/version conflict handling.
+- [x] Add optimistic concurrency/version conflict handling. Saves include the expected version and fail with a reload message if another tab saved first.
 - [ ] Add undo/redo persistence across refreshes.
 - [ ] Test Chrome/Edge/Firefox/Safari where feasible.
 

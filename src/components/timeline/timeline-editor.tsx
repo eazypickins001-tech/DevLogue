@@ -96,6 +96,11 @@ export function TimelineEditor({
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
   const audioRefs = useRef(new Map<string, HTMLAudioElement>());
   const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
+  const processingAssets = assets.filter((asset) =>
+    asset.kind === "video" ? !asset.thumbnailUrl : asset.kind === "audio" ? !asset.waveformUrl : false,
+  );
+  const transcriptionRunning =
+    transcription.jobStatus === "queued" || transcription.jobStatus === "running";
   const duration = Math.max(0.1, document.durationSec);
 
   useEffect(() => {
@@ -306,7 +311,7 @@ export function TimelineEditor({
     setSaveState("saving");
     setSaveError(null);
     try {
-      const result = await saveTimeline({ timelineId, document });
+      const result = await saveTimeline({ timelineId, document, expectedVersion: savedVersion });
       if (!result.ok) throw new Error(result.error);
       setSavedVersion(result.version);
       setDirty(false);
@@ -319,6 +324,20 @@ export function TimelineEditor({
 
   return (
     <div className="space-y-4">
+      {processingAssets.length > 0 || transcriptionRunning ? (
+        <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {processingAssets.length > 0 ? (
+            <p>
+              Previews are still processing for {processingAssets.length} asset
+              {processingAssets.length === 1 ? "" : "s"}. Thumbnails and waveforms appear when the
+              worker finishes.
+            </p>
+          ) : null}
+          {transcriptionRunning ? (
+            <p>Transcription is still running; captions appear when it finishes.</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-sm">
@@ -621,6 +640,31 @@ export function TimelineEditor({
               </div>
               <span className="text-xs text-slate-400">v{savedVersion}</span>
             </div>
+            {selected?.clip.assetId ? (
+              (() => {
+                const asset = assetMap.get(selected.clip.assetId as string);
+                if (!asset) return null;
+                return (
+                  <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Source preview
+                    </p>
+                    {asset.kind === "video" ? (
+                      <video
+                        src={asset.url}
+                        poster={asset.thumbnailUrl ?? undefined}
+                        controls
+                        preload="metadata"
+                        className="w-full rounded bg-black"
+                      />
+                    ) : asset.kind === "audio" ? (
+                      <audio src={asset.url} controls preload="metadata" className="w-full" />
+                    ) : null}
+                    <p className="truncate text-xs text-slate-500">{asset.filename}</p>
+                  </div>
+                );
+              })()
+            ) : null}
             {selected ? (
               <div className="mt-4 space-y-3">
                 <label className="block">

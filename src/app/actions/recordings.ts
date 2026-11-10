@@ -212,6 +212,7 @@ export type SaveTimelineResult = { ok: true; version: number } | { ok: false; er
 export async function saveTimeline(input: {
   timelineId: string;
   document: TimelineDocument;
+  expectedVersion?: number;
 }): Promise<SaveTimelineResult> {
   await requireSession();
   const owner = await getOwner();
@@ -278,7 +279,7 @@ export async function saveTimeline(input: {
   }
 
   const version = current.version + 1;
-  await db
+  const updated = await db
     .update(timelineProjects)
     .set({
       document,
@@ -290,7 +291,19 @@ export async function saveTimeline(input: {
       version,
       updatedAt: new Date(),
     })
-    .where(eq(timelineProjects.id, current.id));
+    .where(
+      and(
+        eq(timelineProjects.id, current.id),
+        eq(timelineProjects.version, input.expectedVersion ?? current.version),
+      ),
+    )
+    .returning({ version: timelineProjects.version });
+  if (updated.length === 0) {
+    return {
+      ok: false,
+      error: "This timeline changed in another tab or window. Reload before saving your changes.",
+    };
+  }
 
   return { ok: true, version };
 }
