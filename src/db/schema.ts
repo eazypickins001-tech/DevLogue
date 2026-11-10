@@ -456,6 +456,13 @@ export const transcriptionJobs = pgTable(
   ],
 );
 
+export const workerLeases = pgTable("worker_leases", {
+  name: text("name").primaryKey(),
+  holder: text("holder").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const timelineProjects = pgTable(
   "timeline_projects",
   {

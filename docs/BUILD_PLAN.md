@@ -81,7 +81,7 @@ Goal: production is not dependent on the user manually opening a terminal.
 - [x] Add worker log tail or last-error summary.
 - [x] Add queue counts by job type.
 - [x] Add retry/cancel for failed jobs. Retry requeues failed jobs; each queue card can cancel its queued jobs for the current user.
-- [ ] Add stale-job recovery and concurrency limits. Startup recovery is implemented; a hard concurrency limit across multiple workers is still open.
+- [x] Add stale-job recovery and concurrency limits. Startup recovery requeues interrupted jobs; a database lease in `worker_leases` allows only one active worker, with a 120s TTL and 30s heartbeat. The control service clears the lease on stop/restart.
 - [ ] Verify a 10-15 minute recording end-to-end in production.
 
 Acceptance:

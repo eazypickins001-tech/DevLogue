@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import dns from "node:dns";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
@@ -702,6 +703,28 @@ async function reportTransient(sql, error) {
   });
 }
 
+const WORKER_LEASE = "render-worker";
+const WORKER_LEASE_TTL_SECONDS = 120;
+const workerId = randomUUID();
+
+async function renewWorkerLease(sql) {
+  const rows = await sql`
+    insert into worker_leases (name, holder, expires_at, updated_at)
+    values (${WORKER_LEASE}, ${workerId}, now() + interval '120 seconds', now())
+    on conflict (name) do update
+      set holder = excluded.holder, expires_at = excluded.expires_at, updated_at = now()
+      where worker_leases.expires_at < now() or worker_leases.holder = excluded.holder
+    returning holder
+  `;
+  return rows[0]?.holder === workerId;
+}
+
+async function releaseWorkerLease(sql) {
+  await sql`
+    delete from worker_leases where name = ${WORKER_LEASE} and holder = ${workerId}
+  `.catch(() => undefined);
+}
+
 async function main() {
   loadEnv();
   const sql = neon(required("DATABASE_URL"));
@@ -709,12 +732,46 @@ async function main() {
   console.log(`worker: ffmpeg=${ffmpeg}`);
   console.log(`worker: whisper=${resolveWhisper() ? "ready" : "disabled"}`);
   console.log(`worker: polling ${once ? "once" : "every 10s"}`);
+
+  let acquired = await renewWorkerLease(sql);
+  while (!acquired) {
+    if (once) {
+      console.log("worker: another worker is active; exiting");
+      return;
+    }
+    console.log("worker: another worker is active; waiting for the lease");
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    acquired = await renewWorkerLease(sql);
+  }
+  console.log(`worker: lease acquired (ttl ${WORKER_LEASE_TTL_SECONDS}s)`);
+
+  let leaseLost = false;
+  const heartbeat = setInterval(() => {
+    renewWorkerLease(sql)
+      .then((ok) => {
+        if (!ok) leaseLost = true;
+      })
+      .catch(() => {
+        leaseLost = true;
+      });
+  }, 30_000);
+  heartbeat.unref?.();
+  const shutdown = () => {
+    void releaseWorkerLease(sql).finally(() => process.exit(0));
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+
   const recovered = await recoverInterruptedJobs(sql);
   if (recovered > 0) console.log(`worker: requeued ${recovered} interrupted job(s)`);
   const flushed = await flushErrorSpool(sql);
   if (flushed > 0) console.log(`worker: flushed ${flushed} error report(s)`);
 
   do {
+    if (leaseLost) {
+      console.log("worker: lease lost; stopping");
+      break;
+    }
     try {
     const derivativeJob = await claimDerivativeJob(sql);
     if (derivativeJob) {
@@ -789,6 +846,9 @@ async function main() {
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 10_000));
     }
   } while (!once);
+
+  clearInterval(heartbeat);
+  await releaseWorkerLease(sql);
 }
 
 main().catch(async (error) => {

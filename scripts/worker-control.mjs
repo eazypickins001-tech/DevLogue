@@ -63,6 +63,15 @@ async function databaseDiagnostic() {
   }
 }
 
+async function clearWorkerLease() {
+  try {
+    const sql = neon(process.env.DATABASE_URL);
+    await sql`delete from worker_leases where name = 'render-worker'`;
+  } catch {
+    // The worker also releases its lease on a graceful exit.
+  }
+}
+
 function logTail(lineCount = 200) {
   if (!existsSync(logPath)) return "";
   return readFileSync(logPath, "utf8").split(/\r?\n/).slice(-lineCount).join("\n");
@@ -116,7 +125,10 @@ function stopWorker() {
     if (target.exitCode === null) target.kill("SIGKILL");
   }, 5000);
   killTimer.unref();
-  target.once("exit", () => clearTimeout(killTimer));
+  target.once("exit", () => {
+    clearTimeout(killTimer);
+    void clearWorkerLease();
+  });
   target.kill("SIGTERM");
   return { ok: true, stopping: true, pid, ...status() };
 }
@@ -157,9 +169,10 @@ const server = createServer((request, response) => {
   if (request.method === "POST" && request.url === "/restart") {
     stopWorker();
     const deadline = Date.now() + 15_000;
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       if (!child || child.exitCode !== null) {
         clearInterval(timer);
+        await clearWorkerLease();
         const result = startWorker();
         response.end(JSON.stringify({ ok: true, restarted: true, ...result }));
         return;

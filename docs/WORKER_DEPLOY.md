@@ -8,7 +8,7 @@ This is the permanent worker path: DevLogue on Vercel calls a token-protected co
 - App: `devlogue-worker`, Dockerfile `/Dockerfile.worker`, internal port `4100`, health check `/health`.
 - Origin URL: `https://worker.178.18.246.145.sslip.io` (Coolify/Let's Encrypt).
 - Public URL: `https://worker.kiganza.online`, served by the Cloudflare Worker proxy in `infra/worker-proxy`.
-- Coolify env: `DATABASE_URL`, `R2_*`, `WORKER_CONTROL_TOKEN`, `WORKER_CONTROL_AUTOSTART=true`, `WHISPER_MODEL=base.en`. The control service restarts the worker after an unexpected exit.
+- Coolify env: `DATABASE_URL`, `R2_*`, `WORKER_CONTROL_TOKEN`, `WORKER_CONTROL_AUTOSTART=true`, `WHISPER_MODEL=base.en`. The control service restarts the worker after an unexpected exit. Only one worker processes jobs: `worker_leases` holds a 120s lease with a 30s heartbeat, and the control service clears it on stop/restart.
 - Vercel Production: `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` set. `/health` returns `200`; `/status` reports `running`.
 
 ## Prerequisites

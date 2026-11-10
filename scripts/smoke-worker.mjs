@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
 function envLocal() {
@@ -120,8 +120,19 @@ try {
   await step("exposes the worker log", async () => {
     await waitFor(async () => {
       const log = await request("/log");
-      return Boolean(log.body?.log?.includes("worker:"));
+      return Boolean(log.body?.log?.includes("lease acquired"));
     }, "worker log output", 20_000);
+  });
+
+  await step("rejects a second worker", async () => {
+    const output = execFileSync(process.execPath, ["scripts/render-worker.mjs", "--once"], {
+      env: { ...process.env, ...Object.fromEntries(env) },
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+    if (!output.includes("another worker is active")) {
+      throw new Error("A second worker was not blocked by the lease.");
+    }
   });
 
   await step("reports database health", async () => {
