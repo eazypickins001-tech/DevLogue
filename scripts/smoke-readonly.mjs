@@ -58,6 +58,7 @@ try {
     "/help",
     "/operations/errors",
     "/operations/storage",
+    "/operations/users",
   ];
 
   for (const route of routes) {
