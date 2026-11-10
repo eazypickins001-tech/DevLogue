@@ -17,6 +17,7 @@
     "smoke:worker": "node scripts/smoke-worker.mjs",
     "smoke:users": "node scripts/smoke-users.mjs",
     "smoke:readonly": "node scripts/smoke-readonly.mjs",
+    "smoke:crossbrowser": "node scripts/smoke-crossbrowser.mjs",
     "prune:errors": "node scripts/prune-error-events.mjs",
     "worker": "node scripts/render-worker.mjs",
     "worker:once": "node scripts/render-worker.mjs --once",

@@ -8,6 +8,11 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    name: smoke (${{ matrix.browser }})
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -31,11 +36,12 @@ jobs:
           fi
       - name: Install Playwright
         if: steps.config.outputs.skip != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Run read-only smoke
         if: steps.config.outputs.skip != 'true'
         env:
           SMOKE_BASE_URL: ${{ vars.SMOKE_BASE_URL }}
           SMOKE_USER_ID: ${{ secrets.SMOKE_USER_ID }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          SMOKE_BROWSER: ${{ matrix.browser }}
         run: pnpm smoke:readonly

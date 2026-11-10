@@ -102,8 +102,8 @@ Goal: editing a video never looks like a blank screen.
 - [x] Add preview error states with links to repair media.
 - [x] Add autosave or a clear unsaved-changes warning.
 - [x] Add optimistic concurrency/version conflict handling. Saves include the expected version and fail with a reload message if another tab saved first.
-- [ ] Add undo/redo persistence across refreshes.
-- [ ] Test Chrome/Edge/Firefox/Safari where feasible.
+- [x] Add undo/redo persistence across refreshes. Undo/redo stacks and unsaved edits are stored per timeline in localStorage and restored when the server version still matches.
+- [x] Test Chrome/Edge/Firefox/Safari where feasible. `pnpm smoke:crossbrowser` runs the read-only smoke in Chromium, Firefox and WebKit; CI runs a three-browser matrix. Firefox offline emulation and WebKit WebM playback are browser limits, handled explicitly.
 
 Acceptance:
 

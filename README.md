@@ -316,7 +316,13 @@ $env:SMOKE_BASE_URL="https://devlogue-prod.vercel.app"
 pnpm smoke:readonly
 ```
 
-The `Read-only smoke` GitHub workflow runs on a schedule when the repository variable `SMOKE_BASE_URL` and the secrets `SMOKE_USER_ID` and `AUTH_SECRET` are configured. It mints a short-lived session cookie instead of signing in through email.
+Cross-browser read-only smoke (Chromium, Firefox and WebKit):
+
+```powershell
+pnpm smoke:crossbrowser
+```
+
+The `Read-only smoke` GitHub workflow runs on a schedule when the repository variable `SMOKE_BASE_URL` and the secrets `SMOKE_USER_ID` and `AUTH_SECRET` are configured. It mints a short-lived session cookie instead of signing in through email, and runs a Chromium/Firefox/WebKit matrix.
 
 ## Deployment (Vercel)
 

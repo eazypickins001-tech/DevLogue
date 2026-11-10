@@ -53,6 +53,7 @@ type Props = {
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+const HISTORY_LIMIT = 20;
 
 function clipIsActive(clip: TimelineClip, time: number): boolean {
   return time >= clip.startSec && time < clip.startSec + clip.durationSec;
@@ -92,6 +93,11 @@ export function TimelineEditor({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [savedVersion, setSavedVersion] = useState(version);
   const [dirty, setDirty] = useState(false);
+  const [past, setPast] = useState<TimelineDocument[]>([]);
+  const [future, setFuture] = useState<TimelineDocument[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const documentRef = useRef(document);
+  const restoredRef = useRef<string | null>(null);
   const timeRef = useRef(0);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
   const audioRefs = useRef(new Map<string, HTMLAudioElement>());
@@ -102,6 +108,65 @@ export function TimelineEditor({
   const transcriptionRunning =
     transcription.jobStatus === "queued" || transcription.jobStatus === "running";
   const duration = Math.max(0.1, document.durationSec);
+
+  useEffect(() => {
+    documentRef.current = document;
+  }, [document]);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const key = `devlogue:timeline-history:${timelineId}`;
+    const marker = `${timelineId}:${version}`;
+    if (restoredRef.current === marker) {
+      setHydrated(true);
+      return;
+    }
+    restoredRef.current = marker;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          timelineId?: string;
+          baseVersion?: number;
+          document?: TimelineDocument;
+          past?: TimelineDocument[];
+          future?: TimelineDocument[];
+        };
+        if (parsed.timelineId === timelineId && parsed.baseVersion === version) {
+          if (
+            parsed.document &&
+            Array.isArray(parsed.document.tracks) &&
+            JSON.stringify(parsed.document) !== JSON.stringify(initialDocument)
+          ) {
+            setDocument(parsed.document);
+            setDirty(true);
+          }
+          if (Array.isArray(parsed.past)) setPast(parsed.past.slice(-HISTORY_LIMIT));
+          if (Array.isArray(parsed.future)) setFuture(parsed.future.slice(0, HISTORY_LIMIT));
+        } else {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      setHydrated(true);
+      return;
+    }
+    setHydrated(true);
+  }, [timelineId, version, initialDocument]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const key = `devlogue:timeline-history:${timelineId}`;
+    try {
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({ timelineId, baseVersion: savedVersion, document, past, future }),
+      );
+    } catch {
+      void 0;
+    }
+  }, [hydrated, timelineId, savedVersion, document, past, future]);
 
   useEffect(() => {
     timeRef.current = time;
@@ -196,7 +261,34 @@ export function TimelineEditor({
   }
 
   function updateDocument(updater: (current: TimelineDocument) => TimelineDocument): void {
+    setPast((history) => [
+      ...history.slice(-(HISTORY_LIMIT - 1)),
+      structuredClone(documentRef.current),
+    ]);
+    setFuture([]);
     setDocument((current) => normalizeTimeline(updater(structuredClone(current))));
+    setDirty(true);
+    setSaveState("idle");
+    setSaveError(null);
+  }
+
+  function undo(): void {
+    if (past.length === 0) return;
+    const previous = past[past.length - 1];
+    setPast(past.slice(0, -1));
+    setFuture([structuredClone(document), ...future].slice(0, HISTORY_LIMIT));
+    setDocument(previous);
+    setDirty(true);
+    setSaveState("idle");
+    setSaveError(null);
+  }
+
+  function redo(): void {
+    if (future.length === 0) return;
+    const next = future[0];
+    setFuture(future.slice(1));
+    setPast([...past, structuredClone(document)].slice(-HISTORY_LIMIT));
+    setDocument(next);
     setDirty(true);
     setSaveState("idle");
     setSaveError(null);
@@ -532,6 +624,22 @@ export function TimelineEditor({
               </div>
               <div className="flex items-center gap-2">
                 {dirty ? <span className="text-xs text-amber-700">Unsaved changes</span> : null}
+                <button
+                  type="button"
+                  className={buttonSecondary}
+                  disabled={past.length === 0}
+                  onClick={undo}
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  className={buttonSecondary}
+                  disabled={future.length === 0}
+                  onClick={redo}
+                >
+                  Redo
+                </button>
                 <button
                   type="button"
                   className={buttonPrimary}
