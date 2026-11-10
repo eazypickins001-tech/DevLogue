@@ -3,6 +3,7 @@ const IGNORED_PATTERNS = [
   /Script .*\/sw\.js load failed/i,
   /ServiceWorker intercepted the request and encountered an unexpected error/i,
   /^ChunkLoadError:/i,
+  /Failed to load chunk/i,
   /due to access control checks/i,
 ];
 

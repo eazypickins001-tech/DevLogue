@@ -32,6 +32,8 @@ describe("isIgnorableClientError", () => {
       ),
     ).toBe(true);
     expect(isIgnorableClientError("ChunkLoadError: Failed to load chunk /_next/x.js")).toBe(true);
+    expect(isIgnorableClientError("Failed to load chunk /_next/x.js")).toBe(true);
+    expect(isIgnorableClientError("ChunkLoadError", "Failed to load chunk /_next/x.js")).toBe(true);
     expect(isIgnorableClientError("GET /x due to access control checks")).toBe(true);
   });
 

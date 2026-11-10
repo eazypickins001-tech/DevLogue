@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import { flushClientErrorQueue, reportClientError } from "@/lib/errors/client";
@@ -9,7 +9,7 @@ export function ErrorReporter() {
     void flushClientErrorQueue();
 
     const onError = (event: ErrorEvent) => {
-      if (isIgnorableClientError(event.filename, event.message, event.error?.stack)) return;
+      if (isIgnorableClientError(event.filename, event.message, event.error?.name, event.error?.stack)) return;
       reportClientError({
         name: event.error?.name ?? "Error",
         message: event.message || "Unknown browser error",
@@ -20,7 +20,7 @@ export function ErrorReporter() {
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      if (isIgnorableClientError(reason instanceof Error ? reason.message : String(reason), reason instanceof Error ? reason.stack : null)) return;
+      if (isIgnorableClientError(reason instanceof Error ? reason.name : null, reason instanceof Error ? reason.message : String(reason), reason instanceof Error ? reason.stack : null)) return;
       reportClientError({
         name: reason instanceof Error ? reason.name : "UnhandledRejection",
         message: reason instanceof Error ? reason.message : String(reason),
