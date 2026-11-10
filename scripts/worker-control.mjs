@@ -154,6 +154,25 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify(stopWorker()));
     return;
   }
+  if (request.method === "POST" && request.url === "/restart") {
+    stopWorker();
+    const deadline = Date.now() + 15_000;
+    const timer = setInterval(() => {
+      if (!child || child.exitCode !== null) {
+        clearInterval(timer);
+        const result = startWorker();
+        response.end(JSON.stringify({ ok: true, restarted: true, ...result }));
+        return;
+      }
+      if (Date.now() > deadline) {
+        clearInterval(timer);
+        response.statusCode = 500;
+        response.end(JSON.stringify({ ok: false, error: "Worker did not stop in time." }));
+      }
+    }, 500);
+    timer.unref();
+    return;
+  }
   response.statusCode = 404;
   response.end(JSON.stringify({ ok: false, error: "Not found" }));
 });

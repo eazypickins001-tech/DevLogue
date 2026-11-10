@@ -77,11 +77,11 @@ Goal: production is not dependent on the user manually opening a terminal.
 - [x] Expose the control service through an authenticated HTTPS endpoint.
 - [x] Set `WORKER_CONTROL_URL` and `WORKER_CONTROL_TOKEN` in Vercel and local env.
 - [x] Add real worker status to Dashboard, Video Editor and Studio.
-- [ ] Add start/stop/restart controls with confirmation and audit text.
+- [x] Add start/stop/restart controls with confirmation and audit text. Stop and restart confirm before interrupting a job; the panel shows the last action and time.
 - [x] Add worker log tail or last-error summary.
 - [x] Add queue counts by job type.
-- [ ] Add retry/cancel for failed jobs.
-- [ ] Add stale-job recovery and concurrency limits.
+- [x] Add retry/cancel for failed jobs. Retry requeues failed jobs; each queue card can cancel its queued jobs for the current user.
+- [ ] Add stale-job recovery and concurrency limits. Startup recovery is implemented; a hard concurrency limit across multiple workers is still open.
 - [ ] Verify a 10-15 minute recording end-to-end in production.
 
 Acceptance:

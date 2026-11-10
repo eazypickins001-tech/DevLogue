@@ -1,8 +1,8 @@
 "use server";
 
 import { getDb } from "@/db";
-import { getOwner, requireSession } from "@/lib/auth";
-import { redirectSuccess } from "@/lib/forms";
+import { requireSession } from "@/lib/auth";
+import { redirectError, redirectSuccess } from "@/lib/forms";
 import { sql } from "drizzle-orm";
 
 export type WorkerStatus = {
@@ -65,9 +65,12 @@ export async function stopWorker(): Promise<WorkerStatus> {
   return requestWorker("/stop", "POST");
 }
 
+export async function restartWorker(): Promise<WorkerStatus> {
+  return requestWorker("/restart", "POST");
+}
+
 export async function retryFailedJobs(): Promise<void> {
-  await requireSession();
-  const owner = await getOwner();
+  const owner = await requireSession();
   const db = getDb();
 
   const results = await Promise.all([
@@ -105,5 +108,50 @@ export async function retryFailedJobs(): Promise<void> {
   redirectSuccess(
     "/video",
     count === 0 ? "No failed jobs to retry." : `Requeued ${count} failed job${count === 1 ? "" : "s"}.`,
+  );
+}
+export async function cancelQueuedJobs(formData: FormData): Promise<void> {
+  const owner = await requireSession();
+  const type = String(formData.get("type") ?? "");
+  const db = getDb();
+
+  let result;
+  if (type === "derivative") {
+    result = await db.execute(sql`
+      update media_derivative_jobs j
+      set status = 'failed', error = 'Cancelled by user.', updated_at = now()
+      from media_assets a
+      where a.id = j.media_asset_id and a.user_id = ${owner.id} and j.status = 'queued'
+    `);
+  } else if (type === "transcription") {
+    result = await db.execute(sql`
+      update transcription_jobs j
+      set status = 'failed', error = 'Cancelled by user.', updated_at = now()
+      from media_assets a
+      where a.id = j.media_asset_id and a.user_id = ${owner.id} and j.status = 'queued'
+    `);
+  } else if (type === "timeline") {
+    result = await db.execute(sql`
+      update timeline_render_jobs j
+      set status = 'failed', error = 'Cancelled by user.', updated_at = now()
+      from timeline_projects t
+      where t.id = j.timeline_id and t.user_id = ${owner.id} and j.status = 'queued'
+    `);
+  } else if (type === "storyboard") {
+    result = await db.execute(sql`
+      update render_jobs j
+      set status = 'failed', error = 'Cancelled by user.', updated_at = now()
+      from content_drafts d
+      join projects p on p.id = d.project_id
+      where d.id = j.draft_id and p.user_id = ${owner.id} and j.status = 'queued'
+    `);
+  } else {
+    redirectError("/video", "Unknown job type.");
+  }
+
+  const count = (result as { rowCount?: number | null }).rowCount ?? 0;
+  redirectSuccess(
+    "/video",
+    count === 0 ? "No queued jobs to cancel." : `Cancelled ${count} queued job${count === 1 ? "" : "s"}.`,
   );
 }

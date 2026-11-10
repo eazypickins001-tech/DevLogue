@@ -217,23 +217,35 @@ export type WorkerQueueSummary = {
   storyboards: Record<string, number>;
 };
 
-export async function getWorkerQueueSummary(): Promise<WorkerQueueSummary> {
+export async function getWorkerQueueSummary(userId: string): Promise<WorkerQueueSummary> {
   const db = getDb();
   const count = sql<number>`count(*)::int`;
   const [derivatives, transcription, timelines, storyboards] = await Promise.all([
     db
       .select({ status: mediaDerivativeJobs.status, count })
       .from(mediaDerivativeJobs)
+      .innerJoin(mediaAssets, eq(mediaAssets.id, mediaDerivativeJobs.mediaAssetId))
+      .where(eq(mediaAssets.userId, userId))
       .groupBy(mediaDerivativeJobs.status),
     db
       .select({ status: transcriptionJobs.status, count })
       .from(transcriptionJobs)
+      .innerJoin(mediaAssets, eq(mediaAssets.id, transcriptionJobs.mediaAssetId))
+      .where(eq(mediaAssets.userId, userId))
       .groupBy(transcriptionJobs.status),
     db
       .select({ status: timelineRenderJobs.status, count })
       .from(timelineRenderJobs)
+      .innerJoin(timelineProjects, eq(timelineProjects.id, timelineRenderJobs.timelineId))
+      .where(eq(timelineProjects.userId, userId))
       .groupBy(timelineRenderJobs.status),
-    db.select({ status: renderJobs.status, count }).from(renderJobs).groupBy(renderJobs.status),
+    db
+      .select({ status: renderJobs.status, count })
+      .from(renderJobs)
+      .innerJoin(contentDrafts, eq(contentDrafts.id, renderJobs.draftId))
+      .innerJoin(projects, eq(projects.id, contentDrafts.projectId))
+      .where(eq(projects.userId, userId))
+      .groupBy(renderJobs.status),
   ]);
   const normalize = (rows: { status: string; count: number }[]) =>
     Object.fromEntries(rows.map((row) => [row.status, row.count]));

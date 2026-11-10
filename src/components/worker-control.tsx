@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getWorkerStatus,
+  restartWorker,
   startWorker,
   stopWorker,
   type WorkerStatus,
@@ -12,7 +13,8 @@ import { buttonPrimary, buttonSecondary, hintClass, linkClass } from "@/componen
 
 export function WorkerControl() {
   const [status, setStatus] = useState<WorkerStatus | null>(null);
-  const [busy, setBusy] = useState<"start" | "stop" | "refresh" | null>(null);
+  const [busy, setBusy] = useState<"start" | "stop" | "restart" | "refresh" | null>(null);
+  const [lastAction, setLastAction] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function refresh() {
@@ -49,12 +51,14 @@ export function WorkerControl() {
     setBusy("start");
     try {
       setStatus(await startWorker());
+      setLastAction(`started at ${new Date().toLocaleTimeString()}`);
     } finally {
       setBusy(null);
     }
   }
 
   async function stop() {
+    if (!window.confirm("Stop the worker? A running job will be interrupted and requeued.")) return;
     setBusy("stop");
     try {
       let next = await stopWorker();
@@ -64,6 +68,24 @@ export function WorkerControl() {
         next = await getWorkerStatus();
         setStatus(next);
       }
+      setLastAction(`stopped at ${new Date().toLocaleTimeString()}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function restart() {
+    if (!window.confirm("Restart the worker? A running job will be interrupted and requeued.")) return;
+    setBusy("restart");
+    try {
+      let next = await restartWorker();
+      setStatus(next);
+      for (let attempt = 0; attempt < 10 && !next.running; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        next = await getWorkerStatus();
+        setStatus(next);
+      }
+      setLastAction(`restarted at ${new Date().toLocaleTimeString()}`);
     } finally {
       setBusy(null);
     }
@@ -109,12 +131,22 @@ export function WorkerControl() {
         <button
           type="button"
           className={buttonSecondary}
+          disabled={!configured || !running || busy !== null}
+          onClick={() => void restart()}
+        >
+          {busy === "restart" ? "Restarting..." : "Restart worker"}
+        </button>
+        <button
+          type="button"
+          className={buttonSecondary}
           disabled={busy !== null}
           onClick={() => void refresh()}
         >
           {busy === "refresh" ? "Refreshing..." : "Refresh status"}
         </button>
       </div>
+
+      {lastAction ? <p className={hintClass}>Last action: {lastAction}.</p> : null}
 
       {status?.error ? <p className="text-sm text-rose-700">{status.error}</p> : null}
       {status?.lastExit && !running ? (

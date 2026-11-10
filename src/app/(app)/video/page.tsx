@@ -3,7 +3,8 @@ import Link from "next/link";
 import { isDatabaseConfigured } from "@/db";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, SetupNotice, buttonSecondary, linkClass } from "@/components/ui";
 import { createTimelineDraft } from "@/app/actions/recordings";
-import { retryFailedJobs } from "@/app/actions/worker";
+import { cancelQueuedJobs, retryFailedJobs } from "@/app/actions/worker";
+import { ConfirmSubmit } from "@/components/confirm-submit";
 import { getOwner } from "@/lib/auth";
 import {
   getWorkerQueueSummary,
@@ -40,7 +41,7 @@ export default async function VideoPage({
   const [boards, jobs, queue, timelines, workerLog] = await Promise.all([
     listStoryboardDrafts(owner.id),
     listRenderJobsForUser(owner.id),
-    getWorkerQueueSummary(),
+    getWorkerQueueSummary(owner.id),
     listTimelines(owner.id),
     getWorkerLogTail(),
   ]);
@@ -127,11 +128,11 @@ export default async function VideoPage({
         />
         <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Previews", counts: queue.derivatives },
-            { label: "Transcription", counts: queue.transcription },
-            { label: "Timelines", counts: queue.timelines },
-            { label: "Storyboards", counts: queue.storyboards },
-          ].map(({ label, counts }) => (
+            { label: "Previews", type: "derivative", counts: queue.derivatives },
+            { label: "Transcription", type: "transcription", counts: queue.transcription },
+            { label: "Timelines", type: "timeline", counts: queue.timelines },
+            { label: "Storyboards", type: "storyboard", counts: queue.storyboards },
+          ].map(({ label, type, counts }) => (
             <div key={label} className="rounded-lg border border-slate-200 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
               <p className="mt-1 text-sm text-slate-700">
@@ -139,6 +140,17 @@ export default async function VideoPage({
               </p>
               {counts.failed ? (
                 <p className="text-xs text-rose-700">{counts.failed} failed</p>
+              ) : null}
+              {counts.queued ? (
+                <form action={cancelQueuedJobs} className="mt-2">
+                  <input type="hidden" name="type" value={type} />
+                  <ConfirmSubmit
+                    message={`Cancel ${counts.queued} queued ${label.toLowerCase()} job${counts.queued === 1 ? "" : "s"}?`}
+                    className="text-xs font-medium text-rose-700 hover:text-rose-900"
+                  >
+                    Cancel queued
+                  </ConfirmSubmit>
+                </form>
               ) : null}
             </div>
           ))}

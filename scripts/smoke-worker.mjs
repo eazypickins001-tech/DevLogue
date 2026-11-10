@@ -102,6 +102,21 @@ try {
     if (!again.body?.alreadyRunning) throw new Error("Start was not idempotent.");
   });
 
+  await step("restarts the worker", async () => {
+    const before = await request("/status");
+    const restarted = await request("/restart", { method: "POST" });
+    if (!restarted.body?.ok) throw new Error(`Restart failed: ${JSON.stringify(restarted.body)}.`);
+    await waitFor(async () => {
+      const status = await request("/status");
+      return status.body?.running === true;
+    }, "worker to restart");
+    const after = await request("/status");
+    if (!after.body?.pid || after.body.pid === before.body?.pid) {
+      throw new Error("Restart did not start a new worker process.");
+    }
+    workerPid = after.body.pid;
+  });
+
   await step("exposes the worker log", async () => {
     await waitFor(async () => {
       const log = await request("/log");
