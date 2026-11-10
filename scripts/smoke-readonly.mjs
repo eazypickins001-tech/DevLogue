@@ -158,6 +158,19 @@ try {
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
     });
+    let ready = false;
+    for (let attempt = 0; attempt < 5 && !ready; attempt += 1) {
+      ready = await page.evaluate(async () =>
+        Boolean(navigator.serviceWorker.controller) && Boolean(await caches.match("/offline.html")),
+      );
+      if (!ready) {
+        await page.reload();
+        await page.evaluate(async () => {
+          await navigator.serviceWorker.ready;
+        });
+      }
+    }
+    if (!ready) throw new Error("Service worker is not controlling the page or the offline page is not cached");
     await page.context().setOffline(true);
     try {
       const response = await page.goto(`${base}/offline-check-${Date.now()}`, { waitUntil: "domcontentloaded" });
