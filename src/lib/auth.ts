@@ -5,22 +5,24 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
-import {
-  SESSION_TTL_MS,
-  createSessionToken,
-  verifySessionToken,
-} from "@/lib/session";
-
-export { verifyPassword } from "@/lib/session";
+import { SESSION_TTL_MS, createSessionToken, verifySessionToken } from "@/lib/session";
 
 export const SESSION_COOKIE = "devlogue_session";
 
+export type CurrentUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: "admin" | "member";
+  status: "active" | "suspended";
+};
+
 export function isAuthConfigured(): boolean {
-  return Boolean(process.env.APP_PASSWORD?.trim() && process.env.AUTH_SECRET?.trim());
+  return Boolean(process.env.AUTH_SECRET?.trim());
 }
 
 export function ownerEmail(): string {
-  return process.env.OWNER_EMAIL?.trim() || "owner@devlogue.local";
+  return process.env.OWNER_EMAIL?.trim().toLowerCase() || "";
 }
 
 function authSecret(): string {
@@ -31,9 +33,9 @@ function authSecret(): string {
   return secret;
 }
 
-export async function setSessionCookie(): Promise<void> {
+export async function setSessionCookie(userId: string): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE, createSessionToken(authSecret()), {
+  store.set(SESSION_COOKIE, createSessionToken(authSecret(), userId), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -47,29 +49,45 @@ export async function clearSessionCookie(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
-export async function hasSession(): Promise<boolean> {
-  if (!isAuthConfigured()) return false;
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  if (!isAuthConfigured()) return null;
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  return token ? verifySessionToken(token, authSecret()) : false;
+  const session = token ? verifySessionToken(token, authSecret()) : null;
+  if (!session) return null;
+
+  const rows = await getDb()
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      status: users.status,
+    })
+    .from(users)
+    .where(eq(users.id, session.userId))
+    .limit(1);
+  const user = rows[0];
+  if (!user || user.status !== "active") return null;
+  return user;
 }
 
-export async function requireSession(): Promise<void> {
-  if (!(await hasSession())) redirect("/login");
+export async function hasSession(): Promise<boolean> {
+  return Boolean(await getCurrentUser());
 }
 
-export async function getOwner(): Promise<{ id: string; email: string }> {
-  const db = getDb();
-  const email = ownerEmail();
-  const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (existing[0]) return { id: existing[0].id, email: existing[0].email };
-  const inserted = await db
-    .insert(users)
-    .values({ email, name: "Owner" })
-    .onConflictDoNothing({ target: users.email })
-    .returning();
-  if (inserted[0]) return { id: inserted[0].id, email: inserted[0].email };
-  const again = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (!again[0]) throw new Error("Could not create the owner account.");
-  return { id: again[0].id, email: again[0].email };
+export async function requireSession(): Promise<CurrentUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireSession();
+  if (user.role !== "admin") redirect("/dashboard");
+  return user;
+}
+
+export async function getOwner(): Promise<CurrentUser> {
+  return requireSession();
 }

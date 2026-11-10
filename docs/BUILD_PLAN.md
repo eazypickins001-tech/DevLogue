@@ -43,7 +43,7 @@ Quality baseline:
 | 7 | Dark mode is CSS overrides | Medium | Maintenance burden and inconsistent components | Introduce design tokens and refactor shared components |
 | 8 | Navigation does not scale | Medium | Too many top-level links; mobile is crowded | Group navigation; desktop sidebar + mobile bottom nav |
 | 9 | Tests are mostly unit-level | High | Critical workflows break silently | E2E coverage for record -> upload -> render -> draft -> publish; CI |
-| 10 | Single-user auth | Medium | "Projects" imply multi-user but there is no tenancy | Decide whether this remains a single-user tool or add workspaces/roles |
+| 10 | Multi-user access control | Low | Open sign-up needs moderation | Passwordless email OTP, roles, suspension and admin-only user management |
 | 11 | Storage policy is incomplete | Medium | R2 can grow without visibility | Usage dashboard, retention rules, orphan sweep, lifecycle policy |
 | 12 | Process: long work without updates | High | User cannot steer or catch confusion | Short milestones; progress updates; 90% context warning and handover note |
 
@@ -162,7 +162,8 @@ Goal: catch regressions before users do.
 - [x] Add PWA/offline checks. Covered by the read-only smoke offline step.
 - [x] Add backup/restore runbook. See `docs/BACKUP_RESTORE.md`: Neon PITR and dumps, R2 sync, secret rotation, verification queries and incident playbooks.
 - [x] Add error monitoring and structured logs. Failures are captured as structured, redacted incidents (source, route, action, job ids, context, breadcrumbs, environment, release) from server requests, client crashes, the worker and smoke scripts, with fingerprinting and regression tracking. Free-form console output stays for humans; the ledger is the machine-readable record.
-- [ ] Add rate limiting and auth hardening if multi-user is added.
+- [x] Add passwordless multi-user accounts with roles and admin user management. First sign-in creates the account, `OWNER_EMAIL` is promoted to admin, and admins manage roles and suspension at `/operations/users`. Sessions carry the user id; suspended users lose access immediately.
+- [ ] Add rate limiting and auth hardening if multi-user is added. OTP request/verify paths are rate-limited per IP and email; other routes still rely on the session cookie.
 
 Acceptance:
 
@@ -182,7 +183,7 @@ This gives immediate clarity without requiring the worker hosting decision first
 
 ## Decisions needed
 
-- Is DevLogue a single-user tool or a multi-user product?
+- ~~Is DevLogue a single-user tool or a multi-user product?~~ Multi-user: passwordless email OTP with admin-managed roles.
 - Should the worker run on Contabo permanently? If yes, who owns the control-service URL and token?
 - Should "Studio" replace both Content Studio and Video Editor as top-level concepts?
 - Should final renders auto-create drafts, or remain an explicit action?

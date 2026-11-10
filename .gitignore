@@ -31,3 +31,5 @@ tools/
 .worker-control-token
 .wrangler/
 .worker-error-spool.ndjson
+.otp-outbox.jsonl
+.smoke-users-failure.png

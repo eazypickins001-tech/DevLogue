@@ -12,7 +12,7 @@ hour for a verified restore.
 | --- | --- | --- |
 | Postgres rows | Neon | Projects, sessions, timelines, drafts, publishing records and storage keys |
 | `media/`, `renders/`, `derivatives/` | R2 | Raw tracks, rendered videos and thumbnails |
-| Secrets | Password manager / Vercel | `DATABASE_URL`, `APP_PASSWORD`, `R2_*`, `OPENROUTER_*`, `GHL_*`, `WORKER_CONTROL_*` |
+| Secrets | Password manager / Vercel | `DATABASE_URL`, `AUTH_SECRET`, `RESEND_API_KEY`, `R2_*`, `OPENROUTER_*`, `GHL_*`, `WORKER_CONTROL_*` |
 
 R2 has no recycle bin: deleting a project removes its objects immediately. Without a separate backup
 bucket the media is unrecoverable even if the database is restored.
@@ -80,7 +80,7 @@ Run `/operations/storage` afterwards to find orphaned objects and missing assets
 Keep a sealed copy of the production variables. Vercel is the source of truth for production;
 `.env.local` is local only and must never be committed.
 
-Rotate `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`, `APP_PASSWORD`, `OPENROUTER_API_KEY`,
+Rotate `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`, `AUTH_SECRET`, `RESEND_API_KEY`, `OPENROUTER_API_KEY`,
 `GHL_*` and `WORKER_CONTROL_TOKEN` immediately if any value leaks. Update Vercel, `.env.local`, and
 the worker/control service, then redeploy and restart the worker.
 

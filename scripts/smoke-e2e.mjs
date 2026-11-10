@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { loginWithCode } from "./auth-helper.mjs";
 import { neon } from "@neondatabase/serverless";
 import { captureError } from "./error-ledger.mjs";
 
@@ -17,8 +18,8 @@ function envLocal() {
 }
 
 const env = envLocal();
-const password = env.get("APP_PASSWORD");
-if (!password) throw new Error("APP_PASSWORD is missing from .env.local");
+const email = env.get("OWNER_EMAIL");
+if (!email) throw new Error("OWNER_EMAIL is missing from .env.local");
 
 const name = `DevLogue Smoke ${Date.now().toString().slice(-6)}`;
 const browser = await chromium.launch();
@@ -38,10 +39,7 @@ async function step(label, fn) {
 
 try {
   await step("login", async () => {
-    await page.goto(`${BASE}/login`);
-    await page.getByLabel("Password").fill(password);
-    await page.getByRole("button", { name: "Enter DevLogue" }).click();
-    await page.waitForURL("**/dashboard");
+    await loginWithCode(page, BASE, email);
     await page.getByRole("heading", { name: "Dashboard" }).waitFor();
   });
 

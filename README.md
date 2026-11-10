@@ -44,7 +44,7 @@ Verified end-to-end with Playwright: login → project → GHL account selection
 | Storage | Cloudflare R2 (S3 API) via `aws4fetch` | 10GB free, no egress fees, presigned URLs |
 | AI | OpenRouter or any OpenAI-compatible endpoint | Provider-agnostic, per-task model selection |
 | Publishing | GoHighLevel Social Planner v2 | Verified accounts, media upload, draft/scheduled posts |
-| Auth | Email OTP (Resend) + password fallback, HMAC-signed cookie | Free, single-user, no password manager needed |
+| Auth | Email one-time code (Resend) + HMAC-signed cookie with roles | Multi-user, no passwords, admin-managed access |
 | Tests | Vitest + a Playwright smoke script | Fast unit tests plus a real integration flow |
 
 ## Requirements
@@ -74,8 +74,9 @@ $bytes = New-Object byte[] 32
 Fill `.env.local`:
 
 ```dotenv
-APP_PASSWORD=<a long password>
 AUTH_SECRET=<generated value>
+RESEND_API_KEY=re_...
+AUTH_EMAIL_FROM=DevLogue <onboarding@resend.dev>
 OWNER_EMAIL=you@example.com
 APP_PUBLIC_URL=
 DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require
@@ -92,7 +93,7 @@ Open `http://localhost:3000`, sign in, create a project, then capture a session.
 
 ### Sign-in
 
-Email codes are the primary path. Add:
+Email codes are the only sign-in path. Add:
 
 ```dotenv
 RESEND_API_KEY=re_...
@@ -100,9 +101,9 @@ AUTH_EMAIL_FROM=DevLogue <onboarding@resend.dev>
 OWNER_EMAIL=you@example.com
 ```
 
-Sign in with the owner email, receive a six-digit code (valid 10 minutes, single use, five attempts), and continue. The password form stays available under "Use the password instead".
+Sign in with any email address. The first sign-in creates the account; the `OWNER_EMAIL` address is promoted to admin and keeps the existing data. Codes are valid for 10 minutes, single use, capped at five attempts, and rate-limited per IP and address.
 
-Resend's free tier allows 3,000 emails/month (100/day). Until a domain is verified in Resend, `onboarding@resend.dev` can only send to the Resend account owner's address, which is exactly the single-user case.
+Resend's free tier allows 3,000 emails/month (100/day). Until a domain is verified in Resend, `onboarding@resend.dev` can only send to the Resend account owner's address, so verify a domain before inviting other users. In development the code is written to `.otp-outbox.jsonl` instead of being emailed.
 
 ### Cloudflare R2 (current dashboard)
 
@@ -315,7 +316,7 @@ $env:SMOKE_BASE_URL="https://devlogue-prod.vercel.app"
 pnpm smoke:readonly
 ```
 
-The `Read-only smoke` GitHub workflow runs on a schedule when the repository variable `SMOKE_BASE_URL` and secret `SMOKE_PASSWORD` are configured.
+The `Read-only smoke` GitHub workflow runs on a schedule when the repository variable `SMOKE_BASE_URL` and the secrets `SMOKE_USER_ID` and `AUTH_SECRET` are configured. It mints a short-lived session cookie instead of signing in through email.
 
 ## Deployment (Vercel)
 
@@ -350,9 +351,9 @@ Server actions that call AI are capped at 60 seconds (`maxDuration`) because of 
 - **Platform-specific fields** for TikTok, YouTube and Threads (privacy, title, etc.) are not sent yet; verify drafts in Social Planner before scheduling.
 - **No GitHub API sync.** Evidence is captured manually (commit/PR URLs, release notes).
 - **No audience analytics import.** Views/likes/waitlist numbers are manual by design.
-- **Single-user auth.**
+- **Open sign-up.** Anyone with an email address can create an account; admins manage roles and suspension at `/operations/users`.
 - Free OpenRouter models are rate-limited (about 50 requests/day at low credit) and can be unavailable; failures are surfaced.
-- Email OTP delivery requires a Resend API key. Without it, the password form is used.
+- Email delivery needs a verified Resend domain before addresses other than the Resend account owner can receive codes. Development uses `.otp-outbox.jsonl` instead.
 - R2 jurisdictional buckets need an endpoint override that is not implemented yet.
 - **Vercel commit-author gate:** a Git deployment is blocked before build (`TEAM_ACCESS_REQUIRED`) when the commit author is not a member of the Vercel team. Commit with an email tied to an authorized GitHub account (this repo uses `eazypickins001@gmail.com`), or invite the author in Vercel → Team → Members. This is not a build failure and not the old `UNKNOWN` symptom.
 

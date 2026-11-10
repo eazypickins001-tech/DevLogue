@@ -29,11 +29,11 @@ export function getServiceStatuses(): ServiceStatus[] {
   return [
     {
       key: "auth",
-      label: "Access protection",
-      configured: has("APP_PASSWORD") && has("AUTH_SECRET"),
+      label: "Email sign-in",
+      configured: has("AUTH_SECRET") && (has("RESEND_API_KEY") || process.env.NODE_ENV !== "production"),
       requiredFor: "Signing in",
-      envVars: ["APP_PASSWORD", "AUTH_SECRET"],
-      setup: "Set a long password and a random 32+ character AUTH_SECRET.",
+      envVars: ["AUTH_SECRET", "RESEND_API_KEY", "AUTH_EMAIL_FROM", "OWNER_EMAIL"],
+      setup: "Set AUTH_SECRET and Resend credentials. Development writes codes to .otp-outbox.jsonl.",
     },
     {
       key: "database",

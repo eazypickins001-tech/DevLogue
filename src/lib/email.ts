@@ -1,12 +1,30 @@
 import "server-only";
 
+import { appendFileSync } from "node:fs";
+import { join } from "node:path";
 import { redactSecrets } from "@/lib/domain/secrets";
 
+const OUTBOX_FILE = ".otp-outbox.jsonl";
+
+export function isDevOutbox(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.AUTH_DEV_OUTBOX !== "false";
+}
+
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.OWNER_EMAIL?.trim());
+  if (isDevOutbox()) return true;
+  return Boolean(process.env.RESEND_API_KEY?.trim());
 }
 
 export async function sendLoginCode(email: string, code: string): Promise<void> {
+  if (isDevOutbox()) {
+    appendFileSync(
+      join(process.cwd(), OUTBOX_FILE),
+      `${JSON.stringify({ email, code, at: new Date().toISOString() })}\n`,
+    );
+    console.log(`otp: wrote a sign-in code for ${email} to ${OUTBOX_FILE}`);
+    return;
+  }
+
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured.");
   const from = process.env.AUTH_EMAIL_FROM?.trim() || "DevLogue <onboarding@resend.dev>";

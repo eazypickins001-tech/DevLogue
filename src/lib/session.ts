@@ -1,18 +1,18 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
-export function verifyPassword(input: string, expected: string): boolean {
-  if (!input || !expected) return false;
-  const a = createHash("sha256").update(input, "utf8").digest();
-  const b = createHash("sha256").update(expected, "utf8").digest();
-  return timingSafeEqual(a, b);
-}
+export type SessionPayload = { userId: string; expiresAt: number };
 
-export function createSessionToken(secret: string, now: number = Date.now()): string {
+export function createSessionToken(
+  secret: string,
+  userId: string,
+  now: number = Date.now(),
+): string {
   const payload = Buffer.from(
     JSON.stringify({
-      v: 1,
+      v: 2,
+      sub: userId,
       exp: now + SESSION_TTL_MS,
       n: randomBytes(12).toString("base64url"),
     }),
@@ -25,20 +25,24 @@ export function verifySessionToken(
   token: string,
   secret: string,
   now: number = Date.now(),
-): boolean {
-  if (!token || !secret) return false;
+): SessionPayload | null {
+  if (!token || !secret) return null;
   const [payload, sig] = token.split(".");
-  if (!payload || !sig) return false;
+  if (!payload || !sig) return null;
   try {
     const expected = createHmac("sha256", secret).update(payload).digest();
     const actual = Buffer.from(sig, "base64url");
-    if (actual.length !== expected.length) return false;
-    if (!timingSafeEqual(actual, expected)) return false;
+    if (actual.length !== expected.length) return null;
+    if (!timingSafeEqual(actual, expected)) return null;
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      v?: unknown;
+      sub?: unknown;
       exp?: unknown;
     };
-    return typeof data.exp === "number" && data.exp > now;
+    if (data.v !== 2 || typeof data.sub !== "string" || !data.sub) return null;
+    if (typeof data.exp !== "number" || data.exp <= now) return null;
+    return { userId: data.sub, expiresAt: data.exp };
   } catch {
-    return false;
+    return null;
   }
 }

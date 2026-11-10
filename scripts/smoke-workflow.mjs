@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { chromium } from "playwright";
+import { loginWithCode } from "./auth-helper.mjs";
 import { neon } from "@neondatabase/serverless";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:3000";
@@ -17,8 +18,8 @@ function envLocal() {
 }
 
 const env = envLocal();
-const password = env.get("APP_PASSWORD");
-if (!password) throw new Error("APP_PASSWORD is missing from .env.local");
+const email = env.get("OWNER_EMAIL");
+if (!email) throw new Error("OWNER_EMAIL is missing from .env.local");
 const databaseUrl = env.get("DATABASE_URL");
 if (!databaseUrl) throw new Error("DATABASE_URL is missing from .env.local");
 const sql = neon(databaseUrl);
@@ -80,10 +81,7 @@ function startWorker() {
 
 try {
   await step("login", async () => {
-    await page.goto(`${BASE}/login`);
-    await page.getByLabel("Password").fill(password);
-    await page.getByRole("button", { name: "Enter DevLogue" }).click();
-    await page.waitForURL("**/dashboard");
+    await loginWithCode(page, BASE, email);
   });
 
   await step("create project", async () => {

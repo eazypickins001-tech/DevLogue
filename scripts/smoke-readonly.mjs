@@ -1,22 +1,20 @@
-﻿import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
+import { addSessionCookie, loginWithCode, readEnvLocal } from "./auth-helper.mjs";
 
 const base = (process.env.SMOKE_BASE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
-const passwordFromFile = (() => {
-  try {
-    const line = readFileSync(".env.local", "utf8").split(/\r?\n/).find((item) => item.startsWith("APP_PASSWORD="));
-    return line?.slice("APP_PASSWORD=".length).replace(/^"|"$/g, "").trim() ?? "";
-  } catch {
-    return "";
-  }
-})();
-const password = process.env.SMOKE_PASSWORD ?? passwordFromFile;
-if (!password) throw new Error("APP_PASSWORD or SMOKE_PASSWORD is required.");
+const env = readEnvLocal();
+const sessionSecret = process.env.AUTH_SECRET ?? env.get("AUTH_SECRET") ?? "";
+const sessionUser = process.env.SMOKE_USER_ID ?? "";
+const email = process.env.SMOKE_EMAIL ?? env.get("OWNER_EMAIL") ?? "";
+if (!sessionUser && !email) {
+  throw new Error("Set SMOKE_USER_ID and AUTH_SECRET, or SMOKE_EMAIL/OWNER_EMAIL for code login.");
+}
 
 const failures = [];
 const consoleErrors = [];
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+const page = await context.newPage();
 page.setDefaultTimeout(45_000);
 page.on("console", (message) => {
   if (message.type() === "error") consoleErrors.push(message.text());
@@ -36,11 +34,12 @@ async function step(label, fn) {
 
 try {
   await step("login", async () => {
-    await page.goto(`${base}/login`);
-    if (await page.locator("details summary").count()) await page.locator("details summary").first().click();
-    await page.getByLabel("Password").fill(password);
-    await page.getByRole("button", { name: "Enter DevLogue" }).click();
-    await page.waitForURL("**/dashboard");
+    if (sessionSecret && sessionUser) {
+      await addSessionCookie(context, base, sessionSecret, sessionUser);
+      await page.goto(`${base}/dashboard`);
+    } else {
+      await loginWithCode(page, base, email);
+    }
     await page.getByRole("heading", { name: "Dashboard" }).waitFor();
   });
 
@@ -117,17 +116,23 @@ try {
     const play = page.getByRole("button", { name: "Play timeline preview" });
     if ((await play.count()) === 0) throw new Error("Play overlay missing");
     await play.click();
-    await page.waitForTimeout(2000);
-    const videos = await page.locator("video").evaluateAll((elements) =>
-      elements.map((video) => ({
-        readyState: video.readyState,
-        time: video.currentTime,
-        width: video.videoWidth,
-      })),
-    );
-    if (!videos.some((video) => video.readyState >= 2 && video.width > 0)) {
-      throw new Error("Preview video did not load");
+    let loaded = false;
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const videos = await page.locator("video").evaluateAll((elements) =>
+        elements.map((video) => ({
+          readyState: video.readyState,
+          time: video.currentTime,
+          width: video.videoWidth,
+        })),
+      );
+      if (videos.some((video) => video.readyState >= 2 && video.width > 0)) {
+        loaded = true;
+        break;
+      }
+      await page.waitForTimeout(500);
     }
+    if (!loaded) throw new Error("Preview video did not load");
   });
 
   await step("worker panel", async () => {
@@ -154,7 +159,7 @@ try {
     });
     await page.context().setOffline(true);
     try {
-      const response = await page.goto(`${base}/dashboard`, { waitUntil: "domcontentloaded" });
+      const response = await page.goto(`${base}/offline-check-${Date.now()}`, { waitUntil: "domcontentloaded" });
       if (!response || response.status() >= 400) throw new Error(`HTTP ${response?.status() ?? "unknown"}`);
       const text = await page.locator("body").innerText();
       if (!text.includes("You are offline")) throw new Error("Offline fallback page was not served");

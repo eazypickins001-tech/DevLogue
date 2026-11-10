@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  await requireSession();
+  const user = await requireSession();
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         Skip to content
       </a>
-      <Nav />
+      <Nav isAdmin={user.role === "admin"} />
       <main id="main-content" className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
         <div className="flex items-center justify-between text-sm">
           <Link href="/sessions/new" className="font-medium text-slate-700 hover:text-slate-900">

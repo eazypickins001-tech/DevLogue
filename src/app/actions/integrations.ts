@@ -118,9 +118,9 @@ export async function runConnectionChecks(): Promise<CheckResult[]> {
   await getOwner();
   const auth: CheckResult = {
     key: "auth",
-    label: "Access protection",
+    label: "Email sign-in",
     ok: isAuthConfigured(),
-    detail: isAuthConfigured() ? "Password and session secret are set." : "APP_PASSWORD or AUTH_SECRET missing.",
+    detail: isAuthConfigured() ? "Email codes and session secret are set." : "AUTH_SECRET or email delivery is missing.",
   };
   const [database, ai, storage, ghl] = await Promise.all([
     checkDatabase(),

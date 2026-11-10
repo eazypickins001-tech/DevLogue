@@ -4,13 +4,12 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb, isDatabaseConfigured } from "@/db";
-import { loginTokens } from "@/db/schema";
+import { loginTokens, users } from "@/db/schema";
 import {
   clearSessionCookie,
   isAuthConfigured,
   ownerEmail,
   setSessionCookie,
-  verifyPassword,
 } from "@/lib/auth";
 import { isEmailConfigured, sendLoginCode } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -24,35 +23,13 @@ import {
   verifyOtpCode,
 } from "@/lib/domain/otp";
 
-export type LoginState = { error?: string };
-
-export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  if (!isAuthConfigured()) {
-    return { error: "Set APP_PASSWORD and AUTH_SECRET in .env.local before signing in." };
-  }
-  const password = String(formData.get("password") ?? "");
-  const headerStore = await headers();
-  const ip =
-    headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headerStore.get("x-real-ip") ??
-    "local";
-
-  if (!checkRateLimit(`login:${ip}`)) {
-    return { error: "Too many attempts. Wait a few minutes before trying again." };
-  }
-  if (!verifyPassword(password, process.env.APP_PASSWORD!.trim())) {
-    return { error: "Incorrect password." };
-  }
-  await setSessionCookie();
-  redirect("/dashboard");
-}
-
-export async function logout(): Promise<void> {
-  await clearSessionCookie();
-  redirect("/login");
-}
-
 export type OtpRequestState = { error?: string; sent?: boolean; email?: string };
+export type OtpVerifyState = { error?: string };
+
+const isProduction = process.env.NODE_ENV === "production";
+const REQUEST_LIMIT = isProduction ? 3 : 50;
+const VERIFY_LIMIT = isProduction ? 12 : 100;
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 async function clientIp(): Promise<string> {
   const headerStore = await headers();
@@ -69,28 +46,33 @@ function authSecret(): string {
   return secret;
 }
 
+export async function logout(): Promise<void> {
+  await clearSessionCookie();
+  redirect("/login");
+}
+
 export async function requestLoginCode(
   _prev: OtpRequestState,
   formData: FormData,
 ): Promise<OtpRequestState> {
   if (!isAuthConfigured()) {
-    return { error: "Set APP_PASSWORD and AUTH_SECRET in .env.local first." };
+    return { error: "Set AUTH_SECRET in .env.local before signing in." };
   }
   if (!isEmailConfigured()) {
-    return { error: "Email sign-in is not configured. Add RESEND_API_KEY and OWNER_EMAIL." };
+    return { error: "Email sign-in is not configured. Add RESEND_API_KEY." };
   }
   if (!isDatabaseConfigured()) {
     return { error: "The database is not configured, so a code cannot be stored." };
   }
   const email = normalizeEmail(String(formData.get("email") ?? ""));
-  if (email !== normalizeEmail(ownerEmail())) {
-    return { error: "That address is not the workspace owner." };
+  if (!EMAIL_PATTERN.test(email)) {
+    return { error: "Enter a valid email address." };
   }
   const ip = await clientIp();
-  if (!checkRateLimit(`otp-request:${ip}`, 3, 15 * 60 * 1000)) {
+  if (!checkRateLimit(`otp-request:${ip}`, REQUEST_LIMIT, 15 * 60 * 1000)) {
     return { error: "Too many code requests. Wait 15 minutes before trying again." };
   }
-  if (!checkRateLimit(`otp-request:${email}`, 3, 15 * 60 * 1000)) {
+  if (!checkRateLimit(`otp-request:${email}`, REQUEST_LIMIT, 15 * 60 * 1000)) {
     return { error: "Too many code requests. Wait 15 minutes before trying again." };
   }
 
@@ -117,8 +99,6 @@ export async function requestLoginCode(
   return { sent: true, email };
 }
 
-export type OtpVerifyState = { error?: string };
-
 export async function verifyLoginCode(
   _prev: OtpVerifyState,
   formData: FormData,
@@ -127,13 +107,11 @@ export async function verifyLoginCode(
   if (!isDatabaseConfigured()) return { error: "The database is not configured." };
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const code = String(formData.get("code") ?? "").replace(/\s+/g, "");
-  if (email !== normalizeEmail(ownerEmail())) {
-    return { error: "That address is not the workspace owner." };
-  }
+  if (!EMAIL_PATTERN.test(email)) return { error: "Enter a valid email address." };
   if (!/^\d{6}$/.test(code)) return { error: "Enter the six-digit code." };
 
   const ip = await clientIp();
-  if (!checkRateLimit(`otp-verify:${ip}`, 12, 10 * 60 * 1000)) {
+  if (!checkRateLimit(`otp-verify:${ip}`, VERIFY_LIMIT, 10 * 60 * 1000)) {
     return { error: "Too many attempts. Wait 10 minutes before trying again." };
   }
 
@@ -162,6 +140,35 @@ export async function verifyLoginCode(
   }
 
   await db.update(loginTokens).set({ usedAt: new Date() }).where(eq(loginTokens.email, email));
-  await setSessionCookie();
+
+  const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  let user = existing[0];
+  if (!user) {
+    const inserted = await db
+      .insert(users)
+      .values({ email })
+      .onConflictDoNothing({ target: users.email })
+      .returning();
+    user =
+      inserted[0] ?? (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
+  }
+  if (!user) return { error: "Could not create the account." };
+  if (user.status !== "active") {
+    return { error: "This account is suspended. Contact an administrator." };
+  }
+
+  const admins = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, "admin"))
+    .limit(1);
+  const role = email === ownerEmail() || admins.length === 0 ? "admin" : user.role;
+
+  await db
+    .update(users)
+    .set({ role, lastLoginAt: new Date(), updatedAt: new Date() })
+    .where(eq(users.id, user.id));
+
+  await setSessionCookie(user.id);
   redirect("/dashboard");
 }

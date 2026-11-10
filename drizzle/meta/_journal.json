@@ -57,6 +57,13 @@
       "when": 1793083584660,
       "tag": "0007_large_harpoon",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793167632228,
+      "tag": "0008_polite_blur",
+      "breakpoints": true
     }
   ]
 }

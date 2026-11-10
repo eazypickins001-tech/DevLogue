@@ -12,7 +12,13 @@ import { buttonPrimary, hintClass, inputClass, labelClass } from "@/components/u
 const requestInitial: OtpRequestState = {};
 const verifyInitial: OtpVerifyState = {};
 
-export function OtpLoginForm({ ownerEmail }: { ownerEmail: string }) {
+export function OtpLoginForm({
+  defaultEmail,
+  devOutbox,
+}: {
+  defaultEmail?: string;
+  devOutbox?: boolean;
+}) {
   const [requestState, requestAction, requestPending] = useActionState(
     requestLoginCode,
     requestInitial,
@@ -28,18 +34,21 @@ export function OtpLoginForm({ ownerEmail }: { ownerEmail: string }) {
         <form action={requestAction} className="space-y-3">
           <div>
             <label htmlFor="otp-email" className={labelClass}>
-              Owner email
+              Email
             </label>
             <input
               id="otp-email"
               name="email"
               type="email"
-              defaultValue={ownerEmail}
+              defaultValue={defaultEmail}
               required
               autoComplete="email"
               className={inputClass}
+              placeholder="you@example.com"
             />
-            <p className={hintClass}>A six-digit code is sent to this address only.</p>
+            <p className={hintClass}>
+              We send a six-digit code. No password needed, and the first sign-in creates the account.
+            </p>
           </div>
           {requestState.error ? (
             <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
@@ -47,14 +56,20 @@ export function OtpLoginForm({ ownerEmail }: { ownerEmail: string }) {
             </p>
           ) : null}
           <button type="submit" className={`${buttonPrimary} w-full`} disabled={requestPending}>
-            {requestPending ? "Sending…" : "Email me a sign-in code"}
+            {requestPending ? "Sending..." : "Email me a sign-in code"}
           </button>
         </form>
       ) : (
         <form action={verifyAction} className="space-y-3">
-          <input type="hidden" name="email" value={requestState.email ?? ownerEmail} />
+          <input type="hidden" name="email" value={requestState.email ?? defaultEmail ?? ""} />
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Code sent to {requestState.email ?? ownerEmail}. Check your inbox and spam folder.
+            <p>Code sent to {requestState.email}. Check your inbox and spam folder.</p>
+            {devOutbox ? (
+              <p className="mt-1 text-xs text-emerald-700">
+                Development mode: the code is written to{" "}
+                <code className="font-mono">.otp-outbox.jsonl</code> instead of email.
+              </p>
+            ) : null}
           </div>
           <div>
             <label htmlFor="otp-code" className={labelClass}>
@@ -78,14 +93,14 @@ export function OtpLoginForm({ ownerEmail }: { ownerEmail: string }) {
             </p>
           ) : null}
           <button type="submit" className={`${buttonPrimary} w-full`} disabled={verifyPending}>
-            {verifyPending ? "Checking…" : "Sign in"}
+            {verifyPending ? "Checking..." : "Sign in"}
           </button>
           <button
             type="button"
             onClick={() => window.location.reload()}
             className="w-full text-center text-sm text-slate-500 hover:text-slate-800"
           >
-            Send a new code
+            Use a different email
           </button>
         </form>
       )}

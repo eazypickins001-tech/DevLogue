@@ -132,6 +132,9 @@ export const renderStatus = pgEnum("render_status", [
   "failed",
 ]);
 
+export const userRole = pgEnum("user_role", ["admin", "member"]);
+export const userStatus = pgEnum("user_status", ["active", "suspended"]);
+
 export const errorSeverity = pgEnum("error_severity", [
   "info",
   "warning",
@@ -203,7 +206,11 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
     name: text("name"),
+    role: userRole("role").notNull().default("member"),
+    status: userStatus("status").notNull().default("active"),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
 );

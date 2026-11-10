@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { LoginForm } from "@/components/login-form";
 import { OtpLoginForm } from "@/components/otp-login-form";
 import { hasSession, isAuthConfigured, ownerEmail } from "@/lib/auth";
-import { isEmailConfigured } from "@/lib/email";
+import { isDevOutbox, isEmailConfigured } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -24,26 +23,18 @@ export default async function LoginPage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          {otpEnabled ? <OtpLoginForm ownerEmail={ownerEmail()} /> : <LoginForm configured={isAuthConfigured()} />}
+          {otpEnabled ? (
+            <OtpLoginForm defaultEmail={ownerEmail()} devOutbox={isDevOutbox()} />
+          ) : (
+            <p className="text-sm text-slate-600">
+              Sign-in is not configured. Set <code className="font-mono">AUTH_SECRET</code> and{" "}
+              <code className="font-mono">RESEND_API_KEY</code> in the environment.
+            </p>
+          )}
         </div>
 
-        {otpEnabled ? (
-          <details className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <summary className="cursor-pointer text-sm font-medium text-slate-700">
-              Use the password instead
-            </summary>
-            <div className="pt-4">
-              <LoginForm configured={isAuthConfigured()} />
-            </div>
-          </details>
-        ) : (
-          <p className="mt-4 rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs text-slate-500">
-            Email codes are enabled when <code className="font-mono">RESEND_API_KEY</code> is set.
-          </p>
-        )}
-
         <p className="mt-4 text-center text-xs text-slate-500">
-          Single-user workspace. Nothing is published without explicit approval.
+          Accounts are created on first sign-in. Nothing is published without explicit approval.
         </p>
       </div>
     </main>

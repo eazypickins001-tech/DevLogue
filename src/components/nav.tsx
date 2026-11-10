@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type NavItem = { href: string; label: string };
+type NavItem = { href: string; label: string; adminOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 
 const GROUPS: NavGroup[] = [
@@ -44,13 +44,14 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/operations/errors", label: "Incidents" },
       { href: "/operations/storage", label: "Storage" },
+      { href: "/operations/users", label: "Users", adminOnly: true },
       { href: "/settings", label: "Settings" },
       { href: "/help", label: "Help" },
     ],
   },
 ];
 
-export function Nav() {
+export function Nav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -59,8 +60,12 @@ export function Nav() {
   const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  const groups = GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.adminOnly || isAdmin),
+  })).filter((group) => group.items.length > 0);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-  const activeGroup = GROUPS.find((group) => group.items.some((item) => isActive(item.href)))?.label;
+  const activeGroup = groups.find((group) => group.items.some((item) => isActive(item.href)))?.label;
 
   useEffect(() => {
     if (!openGroup) return;
@@ -146,7 +151,7 @@ export function Nav() {
           >
             Dashboard
           </Link>
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.label} className="relative">
               <button
                 ref={(node) => {
@@ -218,7 +223,7 @@ export function Nav() {
             >
               Dashboard
             </Link>
-            {GROUPS.map((group) => (
+            {groups.map((group) => (
               <div key={group.label} className="mt-4">
                 <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   {group.label}

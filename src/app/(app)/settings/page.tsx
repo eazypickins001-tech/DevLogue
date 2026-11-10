@@ -1,8 +1,19 @@
 import Link from "next/link";
-import { Badge, Card, CardHeader, PageHeader, linkClass } from "@/components/ui";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  FormMessage,
+  PageHeader,
+  buttonPrimary,
+  inputClass,
+  labelClass,
+  linkClass,
+} from "@/components/ui";
 import { isDatabaseConfigured } from "@/db";
 import { getServiceStatuses, aiProviderName } from "@/lib/env";
-import { getOwner, ownerEmail } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
+import { updateProfileName } from "@/app/actions/users";
 import { getStorageSummary, type StorageSummary } from "@/lib/queries";
 import { storageWarningLevel, storageWarningThreshold } from "@/lib/storage-policy";
 
@@ -51,11 +62,17 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${unit}`;
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string; error?: string }>;
+}) {
+  const { message, error } = await searchParams;
+  const user = await requireSession();
   const services = getServiceStatuses();
   let storage: StorageSummary | null = null;
   if (isDatabaseConfigured()) {
-    storage = await getStorageSummary((await getOwner()).id);
+    storage = await getStorageSummary(user.id);
   }
   const storageWarning = storage
     ? storageWarningLevel(storage.totalBytes, storageWarningThreshold()) === "warning"
@@ -68,17 +85,53 @@ export default async function SettingsPage() {
         description="Configuration is environment-based. No secrets are stored in the database or sent to the browser."
       />
 
+      <FormMessage message={message} tone="success" />
+      <FormMessage message={error} />
+
+      <Card id="profile">
+        <CardHeader
+          title="Your profile"
+          description="Your display name appears on the work you create. Email and role are managed by an admin."
+        />
+        <form action={updateProfileName} className="space-y-4 p-5">
+          <div>
+            <label htmlFor="profile-name" className={labelClass}>
+              Display name
+            </label>
+            <input
+              id="profile-name"
+              name="name"
+              defaultValue={user.name ?? ""}
+              maxLength={80}
+              className={inputClass}
+              placeholder="Your name"
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span className="text-slate-600">Email</span>
+            <span className="font-medium text-slate-900">{user.email}</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span className="text-slate-600">Role</span>
+            <Badge tone={user.role === "admin" ? "info" : "neutral"}>{user.role}</Badge>
+          </div>
+          <button type="submit" className={buttonPrimary}>
+            Save profile
+          </button>
+        </form>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title="Workspace" />
           <dl className="space-y-3 p-5 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <dt className="text-slate-600">Owner</dt>
-              <dd className="font-medium text-slate-900">{ownerEmail()}</dd>
+              <dt className="text-slate-600">Signed in as</dt>
+              <dd className="font-medium text-slate-900">{user.email}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-600">Auth model</dt>
-              <dd className="text-slate-800">Single password + signed session cookie</dd>
+              <dd className="text-slate-800">Email one-time code + signed session cookie</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-600">AI provider</dt>
