@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect } from "react";
+import { isIgnorableClientError } from "@/lib/errors/ignore";
 
 export default function GlobalError({
   error,
@@ -10,6 +11,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (isIgnorableClientError(error.name, error.message, error.stack)) return;
     void fetch("/api/errors/client", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

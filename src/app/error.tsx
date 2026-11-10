@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { reportClientError } from "@/lib/errors/client";
+import { isIgnorableClientError } from "@/lib/errors/ignore";
 
 export default function AppError({
   error,
@@ -12,6 +13,7 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (isIgnorableClientError(error.name, error.message, error.stack)) return;
     reportClientError({
       name: error.name,
       message: error.message,
