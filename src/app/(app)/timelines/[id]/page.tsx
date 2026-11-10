@@ -70,6 +70,12 @@ export default async function TimelinePage({
                 Session
               </Link>
             ) : null}
+            <Link className="text-sm text-slate-600 hover:text-slate-900" href="/studio">
+              Studio
+            </Link>
+            <Link className="text-sm text-slate-600 hover:text-slate-900" href="/calendar">
+              Calendar
+            </Link>
             <Link className="text-sm text-slate-600 hover:text-slate-900" href={`/projects/${project.id}`}>
               Project
             </Link>

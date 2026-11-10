@@ -104,6 +104,12 @@ export default async function SessionDetailPage({
             <Link className={mutedLinkClass} href={`/record?sessionId=${session.id}`}>
               Record
             </Link>
+            <Link className={mutedLinkClass} href="/timelines">
+              Video editor
+            </Link>
+            <Link className={mutedLinkClass} href="/calendar">
+              Calendar
+            </Link>
             <Link className={mutedLinkClass} href={`/projects/${project.id}`}>
               Project
             </Link>

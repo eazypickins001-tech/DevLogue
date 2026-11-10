@@ -69,6 +69,29 @@ try {
     });
   }
 
+  await step("studio primary action", async () => {
+    await page.goto(`${base}/studio`);
+    const editor = page.getByRole("link", { name: "Open video editor" });
+    const record = page.getByRole("link", { name: "Record a session" });
+    if ((await editor.count()) === 0 && (await record.count()) === 0) {
+      throw new Error("No Studio primary action");
+    }
+  });
+
+  await step("session cross-links", async () => {
+    await page.goto(`${base}/sessions`);
+    const link = page.locator('a[href^="/sessions/"]:not([href="/sessions/new"])').first();
+    if ((await link.count()) === 0) {
+      console.log("(no session; skipped) ");
+      return;
+    }
+    await link.click();
+    await page.waitForURL(/\/sessions\/[0-9a-f-]{36}/);
+    const main = page.locator("#main-content");
+    await main.getByRole("link", { name: "Video editor" }).waitFor();
+    await main.getByRole("link", { name: "Calendar" }).waitFor();
+  });
+
   await step("accessibility", async () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${base}/dashboard`);

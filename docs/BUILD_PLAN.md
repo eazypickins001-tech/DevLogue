@@ -56,11 +56,11 @@ Goal: a user can always see both drafts and timelines in one place.
 - [x] Add video timelines to `/studio` alongside text drafts.
 - [x] Rename the destination to "Studio" in navigation and page copy.
 - [x] Add status badges for timeline draft/rendered/failed and draft approval state.
-- [ ] Add a single primary action: Record or Open Video Editor.
+- [x] Add a single primary action: Record or Open Video Editor. Studio shows "Open video editor" when timelines exist and "Record a session" otherwise.
 - [x] Make "Create content draft" discoverable only after a successful render.
 - [x] Add empty states that explain text drafts vs video drafts.
 - [x] Reduce overlapping navigation labels: Build Sessions, Record, Video Editor, Content Studio, Video Production.
-- [ ] Add links between session, timeline, draft and publishing calendar.
+- [x] Add links between session, timeline, draft and publishing calendar. Session links to the video editor and calendar; timeline links to session, studio and calendar; draft links to session, timeline and calendar; calendar links back to drafts.
 
 Acceptance:
 

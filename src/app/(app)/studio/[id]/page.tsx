@@ -78,6 +78,8 @@ export default async function DraftPage({
   );
   const format = draft.format as ContentFormatValue;
   const spec = CONTENT_FORMATS[format];
+  const timelineId =
+    typeof draft.payload?.timelineId === "string" ? draft.payload.timelineId : null;
 
   const issues: LintIssue[] = [];
   if (format === "short_video" && storyboard) {
@@ -134,6 +136,14 @@ export default async function DraftPage({
                 Session
               </Link>
             ) : null}
+            {timelineId ? (
+              <Link className={mutedLinkClass} href={`/timelines/${timelineId}`}>
+                Timeline
+              </Link>
+            ) : null}
+            <Link className={mutedLinkClass} href="/calendar">
+              Calendar
+            </Link>
             <Link className={mutedLinkClass} href="/studio">
               Studio
             </Link>

@@ -8,6 +8,7 @@ import {
   CardHeader,
   PageHeader,
   SetupNotice,
+  buttonPrimary,
   buttonSecondary,
   linkClass,
 } from "@/components/ui";
@@ -57,7 +58,17 @@ export default async function StudioPage({
       <PageHeader
         title="Studio"
         description="Drafts and video timelines in one place. AI output, your edits and the approved version stay separate."
-        actions={<WorkerStatusPill snapshot={worker} />}
+        actions={
+          <>
+            <WorkerStatusPill snapshot={worker} />
+            <Link
+              className={buttonPrimary}
+              href={timelines.length > 0 ? "/timelines" : "/record"}
+            >
+              {timelines.length > 0 ? "Open video editor" : "Record a session"}
+            </Link>
+          </>
+        }
       />
       <Card>
         <CardHeader
