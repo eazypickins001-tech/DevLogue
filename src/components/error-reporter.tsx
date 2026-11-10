@@ -2,14 +2,14 @@
 
 import { useEffect } from "react";
 import { flushClientErrorQueue, reportClientError } from "@/lib/errors/client";
-import { isExtensionError } from "@/lib/errors/ignore";
+import { isIgnorableClientError } from "@/lib/errors/ignore";
 
 export function ErrorReporter() {
   useEffect(() => {
     void flushClientErrorQueue();
 
     const onError = (event: ErrorEvent) => {
-      if (isExtensionError(event.filename, event.error?.stack)) return;
+      if (isIgnorableClientError(event.filename, event.message, event.error?.stack)) return;
       reportClientError({
         name: event.error?.name ?? "Error",
         message: event.message || "Unknown browser error",
@@ -20,7 +20,7 @@ export function ErrorReporter() {
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      if (isExtensionError(reason instanceof Error ? reason.stack : String(reason))) return;
+      if (isIgnorableClientError(reason instanceof Error ? reason.message : String(reason), reason instanceof Error ? reason.stack : null)) return;
       reportClientError({
         name: reason instanceof Error ? reason.name : "UnhandledRejection",
         message: reason instanceof Error ? reason.message : String(reason),

@@ -6,6 +6,16 @@ export const onRequestError: Instrumentation.onRequestError = async (
   context,
 ) => {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  if (error instanceof Error) {
+    const message = error.message;
+    if (
+      message.includes("The destination stream errored while writing data") ||
+      message.includes("NEXT_REDIRECT") ||
+      message.includes("NEXT_NOT_FOUND")
+    ) {
+      return;
+    }
+  }
   const { captureError } = await import("@/lib/errors/capture");
   const header = (name: string): string | null => {
     const value = request.headers[name];
