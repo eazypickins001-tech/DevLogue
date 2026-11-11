@@ -164,7 +164,7 @@ Goal: catch regressions before users do.
 - [x] Add backup/restore runbook. See `docs/BACKUP_RESTORE.md`: Neon PITR and dumps, R2 sync, secret rotation, verification queries and incident playbooks.
 - [x] Add error monitoring and structured logs. Failures are captured as structured, redacted incidents (source, route, action, job ids, context, breadcrumbs, environment, release) from server requests, client crashes, the worker and smoke scripts, with fingerprinting and regression tracking. Free-form console output stays for humans; the ledger is the machine-readable record.
 - [x] Add passwordless multi-user accounts with roles and admin user management. First sign-in creates the account, `OWNER_EMAIL` is promoted to admin, and admins manage roles and suspension at `/operations/users`. Sessions carry the user id; suspended users lose access immediately.
-- [ ] Add rate limiting and auth hardening if multi-user is added. OTP request/verify paths are rate-limited per IP and email; other routes still rely on the session cookie.
+- [x] Add rate limiting and auth hardening if multi-user is added. Production OTP limits use the `rate_limits` table (atomic per IP and email); development falls back to memory. Expired rows are pruned with error events; other routes still rely on the session cookie.
 
 Acceptance:
 
