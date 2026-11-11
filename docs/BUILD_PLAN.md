@@ -137,8 +137,8 @@ Goal: consistent UI that works on desktop and mobile.
 - [ ] Replace CSS override dark mode with token-based themes.
 - [ ] Build desktop sidebar and mobile bottom navigation.
 - [x] Group tools: Create, Studio, Publish, Insights, Settings.
-- [ ] Improve forms, tables and timeline touch targets.
-- [ ] Add safe-area handling and mobile record flow.
+- [x] Improve forms, tables and timeline touch targets. Coarse-pointer devices get 44px minimum controls and inputs.
+- [x] Add safe-area handling and mobile record flow. Safe-area insets are applied to the nav, app shell and login; camera-only is selected automatically when screen capture is unavailable, and screen sources are disabled with a clear notice.
 - [x] Build-version the service worker or switch app chunks to network-first.
 - [x] Add install prompt, offline page and update-available flow. (Offline fallback is covered by the read-only smoke; waiting-worker reload is implemented but not automated.)
 - [ ] Add PWA tests on Android/iOS/desktop.

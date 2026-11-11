@@ -117,10 +117,11 @@ function subscribeSupport(): () => void {
 }
 
 function getSupportSnapshot(): boolean {
-  return (
-    typeof MediaRecorder !== "undefined" &&
-    typeof navigator.mediaDevices?.getDisplayMedia === "function"
-  );
+  return typeof MediaRecorder !== "undefined";
+}
+
+function getScreenSupportSnapshot(): boolean {
+  return typeof navigator.mediaDevices?.getDisplayMedia === "function";
 }
 
 function getSupportServerSnapshot(): boolean {
@@ -157,6 +158,19 @@ export function RecorderClient({
     getSupportSnapshot,
     getSupportServerSnapshot,
   );
+  const screenSupported = useSyncExternalStore(
+    subscribeSupport,
+    getScreenSupportSnapshot,
+    getSupportServerSnapshot,
+  );
+
+  useEffect(() => {
+    if (screenSupported) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOptions((current) =>
+      current.source === "camera" ? current : { ...current, source: "camera", cameraMode: "pip" },
+    );
+  }, [screenSupported]);
 
   const recorderRef = useRef<SessionRecorder | null>(null);
   const runRef = useRef(0);
@@ -517,10 +531,10 @@ export function RecorderClient({
           </div>
         ) : null}
 
-        {supported === false ? (
+        {!screenSupported ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Screen recording needs a Chromium-based desktop browser. Camera-only recording may still
-            work in your browser.
+            Screen recording needs a Chromium-based desktop browser. Camera-only recording is
+            selected on this device.
           </div>
         ) : null}
 
@@ -670,7 +684,7 @@ export function RecorderClient({
                   <button
                     key={source}
                     type="button"
-                    disabled={controlsDisabled}
+                    disabled={controlsDisabled || (!screenSupported && source !== "camera")}
                     onClick={() => {
                       update("source", source);
                       if (source === "screen") update("cameraMode", "off");

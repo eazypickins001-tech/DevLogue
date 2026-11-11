@@ -10,7 +10,7 @@ export default async function LoginPage() {
   const otpEnabled = isAuthConfigured() && isEmailConfigured();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 pt-[calc(env(safe-area-inset-top)+3rem)] pb-[calc(env(safe-area-inset-bottom)+3rem)]">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-sm font-bold text-white">

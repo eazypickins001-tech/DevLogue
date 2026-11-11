@@ -116,7 +116,7 @@ export function Nav({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   return (
-    <nav aria-label="Main" className="border-b border-slate-200 bg-white">
+    <nav aria-label="Main" className="border-b border-slate-200 bg-white pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
         <Link href="/dashboard" className="flex shrink-0 items-center gap-2 no-underline">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-sm font-bold text-white">
