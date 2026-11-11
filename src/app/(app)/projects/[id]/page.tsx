@@ -253,7 +253,7 @@ export default async function ProjectDetailPage({
             </dl>
           </Card>
 
-          <Card>
+          <Card id="publishing-accounts">
             <CardHeader
               title="Publishing accounts"
               description="Choose which HighLevel accounts this project may post to."

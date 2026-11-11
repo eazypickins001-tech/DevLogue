@@ -45,13 +45,18 @@ export function PublishPanel({
             handoff form.
           </p>
         ) : accounts.length === 0 ? (
-          <p className="text-sm text-slate-600">
-            No publishing accounts saved for this project. Add them on the{" "}
-            <Link className={linkClass} href={`/projects/${projectId}`}>
-              project page
-            </Link>{" "}
-            first.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              No publishing accounts are attached to this project yet. Load them from HighLevel and
+              choose which accounts this project may post to.
+            </p>
+            <Link
+              className={buttonPrimary}
+              href={`/projects/${projectId}#publishing-accounts`}
+            >
+              Add publishing accounts
+            </Link>
+          </div>
         ) : (
           <form action={scheduleDraftWithGhl} className="space-y-4">
             <input type="hidden" name="draftId" value={draftId} />
