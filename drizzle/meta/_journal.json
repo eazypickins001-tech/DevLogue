@@ -71,6 +71,13 @@
       "when": 1794323771609,
       "tag": "0009_odd_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794392427784,
+      "tag": "0010_messy_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

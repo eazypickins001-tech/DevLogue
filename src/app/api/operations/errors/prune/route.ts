@@ -1,6 +1,7 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { hasSession } from "@/lib/auth";
 import { pruneErrorEvents } from "@/lib/errors/retention";
+import { pruneRateLimits } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,9 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const days = Number(process.env.ERROR_EVENT_RETENTION_DAYS ?? 90);
-  const deleted = await pruneErrorEvents(Number.isFinite(days) ? days : 90);
-  return NextResponse.json({ ok: true, deleted, retentionDays: days });
+  const [deleted, rateLimitsDeleted] = await Promise.all([
+    pruneErrorEvents(Number.isFinite(days) ? days : 90),
+    pruneRateLimits(),
+  ]);
+  return NextResponse.json({ ok: true, deleted, rateLimitsDeleted, retentionDays: days });
 }

@@ -69,10 +69,10 @@ export async function requestLoginCode(
     return { error: "Enter a valid email address." };
   }
   const ip = await clientIp();
-  if (!checkRateLimit(`otp-request:${ip}`, REQUEST_LIMIT, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit(`otp-request:${ip}`, REQUEST_LIMIT, 15 * 60 * 1000))) {
     return { error: "Too many code requests. Wait 15 minutes before trying again." };
   }
-  if (!checkRateLimit(`otp-request:${email}`, REQUEST_LIMIT, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit(`otp-request:${email}`, REQUEST_LIMIT, 15 * 60 * 1000))) {
     return { error: "Too many code requests. Wait 15 minutes before trying again." };
   }
 
@@ -111,7 +111,7 @@ export async function verifyLoginCode(
   if (!/^\d{6}$/.test(code)) return { error: "Enter the six-digit code." };
 
   const ip = await clientIp();
-  if (!checkRateLimit(`otp-verify:${ip}`, VERIFY_LIMIT, 10 * 60 * 1000)) {
+  if (!(await checkRateLimit(`otp-verify:${ip}`, VERIFY_LIMIT, 10 * 60 * 1000))) {
     return { error: "Too many attempts. Wait 10 minutes before trying again." };
   }
 
