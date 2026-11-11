@@ -7,6 +7,7 @@ import {
   EmptyState,
   PageHeader,
   SetupNotice,
+  buttonPrimary,
   linkClass,
 } from "@/components/ui";
 import { getOwner } from "@/lib/auth";
@@ -99,10 +100,36 @@ export default async function CalendarPage() {
           <CardHeader title="Scheduled and published" description="Status comes from the provider only when a job runs." />
           {posts.length === 0 ? (
             <div className="p-5">
-              <EmptyState
-                title="Nothing scheduled"
-                description="Approved drafts are listed alongside. Scheduling will be enabled once GHL credentials are verified."
-              />
+              {approved.length > 0 ? (
+                <EmptyState
+                  title="Nothing scheduled yet"
+                  description={`${approved.length} approved draft${approved.length === 1 ? "" : "s"} ready for handoff. Open one to create a HighLevel draft or schedule it.`}
+                  action={
+                    <Link
+                      className={buttonPrimary}
+                      href={`/studio/${approved[0].draft.id}#publishing`}
+                    >
+                      Open approved draft
+                    </Link>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  title="Nothing scheduled"
+                  description={
+                    pending.length > 0
+                      ? `${pending.length} draft${pending.length === 1 ? "" : "s"} waiting for approval above. Approve one to move it here.`
+                      : ghl?.configured
+                        ? "Approve a draft in Studio, then create a HighLevel draft or schedule it."
+                        : "Approve a draft in Studio. Scheduling is enabled when GHL credentials are configured."
+                  }
+                  action={
+                    <Link className={linkClass} href="/studio">
+                      Open Studio
+                    </Link>
+                  }
+                />
+              )}
             </div>
           ) : (
             <ul className="divide-y divide-slate-100">
@@ -134,10 +161,10 @@ export default async function CalendarPage() {
           )}
         </Card>
 
-        <Card>
+        <Card id="approved">
           <CardHeader
             title="Ready for handoff"
-            description="Approved drafts. Copy the caption into HighLevel Social Planner if scheduling is not enabled."
+            description="Approved drafts. Open one to create a HighLevel draft or schedule it."
           />
           {approved.length === 0 ? (
             <div className="p-5 text-sm text-slate-600">
@@ -155,7 +182,12 @@ export default async function CalendarPage() {
                     <Link href={`/studio/${draft.id}`} className="text-sm font-medium text-slate-900">
                       {draft.title || CONTENT_FORMATS[draft.format as ContentFormatValue]?.label}
                     </Link>
-                    <Badge tone="success">Approved v{draft.approvedVersion}</Badge>
+                    <div className="flex items-center gap-3">
+                      <Badge tone="success">Approved v{draft.approvedVersion}</Badge>
+                      <Link className={linkClass} href={`/studio/${draft.id}#publishing`}>
+                        Publishing handoff
+                      </Link>
+                    </div>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {projectName} · {CONTENT_FORMATS[draft.format as ContentFormatValue]?.label}
