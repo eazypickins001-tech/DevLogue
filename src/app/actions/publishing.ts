@@ -189,16 +189,16 @@ async function uploadDraftMedia(draftId: string, sessionId: string): Promise<{
     }
     try {
       let uploaded: { fileId: string; url: string };
-      if (canHandoff) {
-        const handoffUrl = `${base}/api/publishing-media/${createHandoffToken(asset.id)}`;
-        uploaded = await uploadMediaToGhl({ fileUrl: handoffUrl, name: asset.filename });
-      } else if (asset.sizeBytes <= 25 * 1024 * 1024) {
+      if (asset.sizeBytes <= 25 * 1024 * 1024) {
         const bytes = await readObjectBytes(asset.storageKey);
         uploaded = await uploadMediaFile({
           bytes,
           filename: asset.filename,
           contentType: asset.contentType,
         });
+      } else if (canHandoff) {
+        const handoffUrl = `${base}/api/publishing-media/${createHandoffToken(asset.id)}/${encodeURIComponent(asset.filename)}`;
+        uploaded = await uploadMediaToGhl({ fileUrl: handoffUrl, name: asset.filename });
       } else {
         throw new Error(
           "Set APP_PUBLIC_URL to a public HTTPS URL so HighLevel can fetch this large file.",
