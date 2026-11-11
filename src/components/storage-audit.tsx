@@ -4,6 +4,7 @@ import { useState } from "react";
 import { buttonDanger, buttonPrimary, hintClass } from "@/components/ui";
 
 type OrphanObject = { key: string; size: number; lastModified: string | null };
+type PrefixStat = { prefix: string; count: number; bytes: number };
 type ScanResult = {
   ok: boolean;
   scannedAt: string;
@@ -12,9 +13,16 @@ type ScanResult = {
   knownCount: number;
   orphanCount: number;
   orphanBytes: number;
+  byPrefix: PrefixStat[];
   orphans: OrphanObject[];
   truncated: boolean;
   error?: string;
+};
+
+const PREFIX_LABELS: Record<string, string> = {
+  "media/": "Raw recording tracks",
+  "renders/": "Rendered videos",
+  "derivatives/": "Thumbnails and waveforms",
 };
 
 function formatBytes(bytes: number): string {
@@ -114,6 +122,21 @@ export function StorageAudit() {
               <p className="mt-1 font-medium text-slate-900">media/ - renders/ - derivatives/</p>
             </div>
           </div>
+          {scan.byPrefix?.length ? (
+            <div className="grid gap-2 sm:grid-cols-3">
+              {scan.byPrefix.map((row) => (
+                <div key={row.prefix} className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {PREFIX_LABELS[row.prefix] ?? row.prefix}
+                  </p>
+                  <p className="mt-1 font-medium text-slate-900">{formatBytes(row.bytes)}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.count} object{row.count === 1 ? "" : "s"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {scan.truncated ? <p className={hintClass}>Showing the first 1,000 orphan keys. Delete and rescan to continue.</p> : null}
           {scan.orphans.length === 0 ? (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">

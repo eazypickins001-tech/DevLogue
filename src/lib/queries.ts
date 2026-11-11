@@ -260,6 +260,7 @@ export type StorageSummary = {
   totalBytes: number;
   assetCount: number;
   byKind: { kind: string; bytes: number; count: number }[];
+  byTrack: { track: string; bytes: number; count: number }[];
   byProject: { id: string | null; name: string; bytes: number; count: number }[];
   bySession: { id: string; title: string; bytes: number; count: number }[];
 };
@@ -268,12 +269,22 @@ export async function getStorageSummary(userId: string): Promise<StorageSummary>
   const db = getDb();
   const bytes = sql<string>`coalesce(sum(${mediaAssets.sizeBytes}), 0)::bigint`;
   const count = sql<number>`count(*)::int`;
-  const [byKind, byProject, bySession, totals] = await Promise.all([
+  const [byKind, byTrack, byProject, bySession, totals] = await Promise.all([
     db
       .select({ kind: mediaAssets.kind, bytes, count })
       .from(mediaAssets)
       .where(eq(mediaAssets.userId, userId))
       .groupBy(mediaAssets.kind)
+      .orderBy(desc(bytes)),
+    db
+      .select({
+        track: sql<string>`coalesce(${mediaAssets.recordingTrack}, 'unclassified')`,
+        bytes,
+        count,
+      })
+      .from(mediaAssets)
+      .where(eq(mediaAssets.userId, userId))
+      .groupBy(sql`coalesce(${mediaAssets.recordingTrack}, 'unclassified')`)
       .orderBy(desc(bytes)),
     db
       .select({
@@ -310,6 +321,7 @@ export async function getStorageSummary(userId: string): Promise<StorageSummary>
     totalBytes: Number(totals[0]?.bytes ?? 0),
     assetCount: Number(totals[0]?.count ?? 0),
     byKind: byKind.map((row) => ({ ...row, bytes: Number(row.bytes) })),
+    byTrack: byTrack.map((row) => ({ ...row, bytes: Number(row.bytes) })),
     byProject: byProject.map((row) => ({ ...row, bytes: Number(row.bytes) })),
     bySession: bySession.map((row) => ({ ...row, bytes: Number(row.bytes) })),
   };

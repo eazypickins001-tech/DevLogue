@@ -116,7 +116,7 @@ Acceptance:
 
 Goal: users can understand and control R2 usage.
 
-- [ ] Add storage usage by project, session, raw media, renders, thumbnails and waveforms. (Projects, sessions and media kinds are done; raw-vs-render and derivative sizes remain.)
+- [x] Add storage usage by project, session, raw media, renders, thumbnails and waveforms. Settings groups assets by source; the R2 audit shows bytes and counts for media/, renders/ and derivatives/.
 - [x] Add orphan R2 sweep for deleted rows.
 - [x] Add retention policy for raw tracks and renders.
 - [ ] Add bulk cleanup for completed projects.

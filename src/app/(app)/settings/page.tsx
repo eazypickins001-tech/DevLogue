@@ -50,6 +50,15 @@ const PHASES = [
   },
 ];
 
+const TRACK_LABELS: Record<string, string> = {
+  camera: "Camera video",
+  microphone: "Microphone audio",
+  screen: "Screen video",
+  system: "System audio",
+  render: "Rendered videos",
+  unclassified: "Unclassified",
+};
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB", "TB"];
@@ -235,6 +244,29 @@ export default async function SettingsPage({
                 </div>
               ))}
             </div>
+            {storage.byTrack.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  By source
+                </p>
+                <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {storage.byTrack.map((row) => (
+                    <li
+                      key={row.track}
+                      className="flex items-center justify-between gap-3 px-3 py-2"
+                    >
+                      <span className="truncate text-slate-800">
+                        {TRACK_LABELS[row.track] ?? row.track}
+                      </span>
+                      <span className="shrink-0 text-xs text-slate-500">
+                        {formatBytes(row.bytes)} - {row.count} asset
+                        {row.count === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {storage.byProject.length > 0 ? (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

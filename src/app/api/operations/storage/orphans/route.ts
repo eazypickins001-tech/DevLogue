@@ -48,6 +48,14 @@ export async function GET(): Promise<Response> {
     ]);
     const objects = pages.flat();
     const orphans = findOrphanKeys(objects, known);
+    const byPrefix = PREFIXES.map((prefix) => {
+      const scoped = objects.filter((object) => object.key.startsWith(prefix));
+      return {
+        prefix,
+        count: scoped.length,
+        bytes: scoped.reduce((total, object) => total + object.size, 0),
+      };
+    });
     return NextResponse.json({
       ok: true,
       scannedAt: new Date().toISOString(),
@@ -56,6 +64,7 @@ export async function GET(): Promise<Response> {
       knownCount: known.size,
       orphanCount: orphans.length,
       orphanBytes: orphans.reduce((total, object) => total + object.size, 0),
+      byPrefix,
       orphans: orphans.slice(0, 1000),
       truncated: orphans.length > 1000,
     });
